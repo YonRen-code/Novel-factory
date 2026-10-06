@@ -1,0 +1,24 @@
+# 构建产物
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 运行时数据（故事正文/记忆/检查点——按需本地生成）
+data/
+docs/workspace/
+*.log
+
+# 密钥与本地配置（含 API key，严禁入库）
+application-local.yml
+*.local.yml
+.env
+
+# 系统
+.DS_Store
+Thumbs.db

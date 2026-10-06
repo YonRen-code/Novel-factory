@@ -1,0 +1,364 @@
+story:
+  defaults:
+    language: "中文"
+    totalCount: 2000
+
+  module:
+    ai-api:
+      base-url: ${LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
+      api-key: ${LLM_API_KEY:}
+    chat-model:
+      model: qwen3.8-flash
+      max-tokens: 16384
+      temperature: 0.7
+      enable-thinking: false
+    # 总开关：true=所有场景统一用 chat-model；false=按 scene-models 分场景路由
+    unified-model-enabled: false
+
+    scene-models:
+      stage-blueprint:
+        model: DeepSeek-V4-Pro #deepseek-v4-pro
+        max-tokens: 16384
+        temperature: 0.7 # 非推理模型，沿用常规采样温度（>0 保证方向分支有差异）；kimi-k3 才是必须 1.0
+        enable-thinking: false
+      chapter-plan:
+        # 2026-10-05 回退：kimi-k3 实测 chapter-plan 调用 10 分钟无返回（job-45698635341504512，
+        # 10:32:56 发起至 10:43 未见 completion，网关 read-timeout 1800s 下表现为整批假死）。
+        # kimi-k3 为强制思考模型且不支持 thinking_budget——与 glm-5.3 事件同型，不适用于每批必调的规划路径。
+        model: qwen3.8-max
+        max-tokens: 32768
+        temperature: 1.0 # 必须 1.0，理由见上方说明
+        enable-thinking: true
+      chapter-beats:
+        model: deepseek-v4.1-flash
+        max-tokens: 2048
+        temperature: 0.3
+        enable-thinking: false
+      chapter-content:
+        model: glm-5.2
+        max-tokens: 16384
+        temperature: 0.5
+        enable-thinking: false
+      chapter-rewrite:
+        # 2026-10-04 回退到实弹验证档：preview 作挑战者 8 稿全部比原稿短（1,207-1,817 字 vs 原稿 1,824-3,368），
+        # 叠加盲评不评长短的结构性偏置，造成 5 次缩水采纳。同上属质量淘汰。
+        model: qwen3.8-max #qwen-3.7-plus #qwen3.7-plus
+        max-tokens: 16384
+        temperature: 0.7
+        enable-thinking: false
+      chapter-judge:
+        model: deepseek-v4.1-flash
+        max-tokens: 1024
+        temperature: 0.2
+        enable-thinking: false
+      audit:
+        # 2026-10-04 保留 preview（11-20 章两批 audit+audit-verify 共 32 次调用全成功，且实际抓出
+        # ch9 禁泄泄露——质量已验证）；此前一度被改为无后缀 qwen3.7-max（未验证名），现改回验证名。
+        model: qwen-3.7-plus #qwen3.7-plus
+        max-tokens: 16384
+        temperature: 0.1
+        enable-thinking: false
+      paragraph-audit:
+        # 2026-10-04 从 audit 场景拆出独立配置（此前跟随 audit 的强制思考模型）：机械补丁任务
+        #（输入本章正文 → 输出至多 3 条改写补丁），输出仅数百字，却在 preview 上每次实付 7-9.5k token
+        #（思维链占 ~2/3），5 章 ≈ 3 万 token 纯税。配非思考免费档，机械任务零质量风险。
+        model: DeepSeek-V4-Flash #deepseek-v4-flash
+        max-tokens: 4096
+        temperature: 0.1
+        enable-thinking: false
+      revise:
+        model: qwen-3.7-plus #qwen3.7-plus
+        max-tokens: 16384
+        temperature: 0.4
+        enable-thinking: false
+      summary:
+        model: DeepSeek-V4-Flash #deepseek-v4-flash
+        max-tokens: 16384
+        temperature: 0.2
+        enable-thinking: false
+      ledger-adjudicate:
+        model: DeepSeek-V4-Flash #deepseek-v4-flash glm-5.2
+        max-tokens: 4096
+        temperature: 0.1
+        enable-thinking: false
+      foreshadow-settlement:
+        model: deepseek-v4.1-flash
+        max-tokens: 16384
+        temperature: 0.1
+        enable-thinking: false
+      exit-review:
+        model: DeepSeek-V4-Pro #deepseek-v4-pro
+        max-tokens: 16384
+        temperature: 0.1
+        enable-thinking: false
+      finale-review:
+        model: DeepSeek-V4-Pro #deepseek-v4-pro
+        max-tokens: 16384
+        temperature: 0.1
+        enable-thinking: false
+      ref-select:
+        model: DeepSeek-V4-Flash #deepseek-v4-flash
+        max-tokens: 2048
+        temperature: 0.1
+        enable-thinking: false
+      quality-review:  # 全书质量评分（每 N 章一次，抽样打分）：低频高价值判定，给 pro 档；
+                       # 输出是若干条维度评分的小 JSON，max-tokens 无需大。cost 与效果单独核算——
+                       # 这是"改了 prompt 之后质量是变好还是变差"的唯一对照基线
+        model: DeepSeek-V4-Pro #deepseek-v4-pro
+        max-tokens: 4096
+        temperature: 0.1
+        enable-thinking: false
+    # 场景级降级链：只在"模型层"失败时启用（额度耗尽 / 模型不存在 / 参数被拒，见 LlmErrorClassifier）。
+    # 2026-09-27 补齐：此前 chapter-content 等六个场景**根本没配备选**，于是 job-42816750521163776
+    # 在第 7 章撞上一次瞬时 403 FreeTierOnly（经复测确认为瞬时、且同类大请求 11s 正常返回）就整批终止——
+    # 分类器已判定"该换模型"，链上却无下一站。
+    # 选型原则：备选**尽量跨模型族**——免费档/上游的拒绝常按模型计量，同族备选可能共享同一份额度而一起失败。
+    model-fallbacks:
+      # 主模型是思考模型时，备选**优先选非思考的另一个族**：思考模型的失败模式里
+      # "超长思考被供应商 abort / 撞读超时"占比很高，备选若也是思考模型，只是把同样的等待重演一遍。
+      stage-blueprint: [ qwen3.8-flash ]
+      chapter-plan: [ deepseek-v4-pro, qwen3.8-flash ]
+      chapter-rewrite: [ qwen3.8-flash ]
+      revise: [ deepseek-v4.1-flash ]
+      foreshadow-settlement: [ deepseek-v4-pro ]
+      exit-review: [ deepseek-v4-pro ]
+      finale-review: [ deepseek-v4-pro ]
+      ledger-adjudicate: [ deepseek-v4.1-flash ]
+      quality-review: [ deepseek-v4.1-flash ]   # 评分本身失败不该让整批陪葬（fail-soft 之外再加一层）
+      # 正文是量最大、最不能停的场景：跨族兜底，避免一次瞬时拒绝报废整批
+      chapter-content: [ deepseek-v4.1-flash ]
+      chapter-beats: [ deepseek-v4.1-flash ]
+      # 审校需要结构化判定，退档到异族的 27b 档（qwen3.8-flash 的判据遵循度不足以接审校）
+      audit: [ deepseek-v4.1-flash ]
+      summary: [ qwen3.8-flash ]
+      ref-select: [ deepseek-v4.1-flash ]
+      # chapter-judge 刻意**不配**备选：它评审的两份候选稿来自 qwen/deepseek 族，
+      # 一旦退到同族模型，盲评的异族中立性即被破坏——宁可让该章回退原稿（既有降级路径），
+      # 也不能用带自偏好的评审污染选优结论。
+
+    embedding-api:
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
+      api-key: ${LLM_API_KEY:}
+      embeddings-path: /v1/embeddings   # 注意必须带 /v1（chat 走 Spring AI 默认 /v1/chat/completions，embedding 没有这层自动拼接）
+      model: qwen3.7-text-embedding     # 2026-09-27 由 text-embedding-v4 切换。实测：默认 1024 维，
+                                        # 支持 dimensions（1024/2048/768 均已验证），单请求 11 条亦可
+      dimensions: 1024                  # 显式钉死维度，不依赖供应商默认值漂移（Spring AI 的 dimensions 参数）
+      # ⚠️ 换 embedding 模型**必须重嵌**：维度相同**不代表**向量空间兼容——旧模型
+      # qwen3.7-text-embedding-flash 实测也是 1024 维（2048 是更早的智谱 embedding-3），
+      # 混用两个模型的向量会让余弦相似度静默变成噪声（不报错，最危险的一类故障）。
+      # 现在这件事由代码强制执行（2026-09-27）：StoryMemoryService 把
+      # {切分方案版本 | embedding 模型 | 维度} 作为签名记入 memory/embedding-index-meta.json，
+      # 签名不符即**整集合重建**；无元数据且该故事已有历史章节同样重建（老故事首次接入）。
+      # 参考资料集合 novel-references 由 ReferenceIndexLoader 每次作业全量重建，按稳定 ID 覆盖，自愈。
+      # 单条输入上限（qwen3.7 系列实测与 v4 同量级）：对应码侧 MAX_EMBED_INPUT_CHARS=8000（≈7150 tokens）
+      batch-size: 10                     # 单次请求的输入**条数**上限：v4 实测 >10 直接 400（batch size is invalid），而参考资料索引失败会终止作业
+
+  # 无人值守续写（阶段六 RunPlan）：一次提交按计划反复自续批，直到达标或触发停机条件。
+  # **默认关闭**——开启后作业会自动连续花 token，请先确认 budget 熔断已配置。
+  run-plan:
+    enabled: false
+    # 目标总章数；留空则用 story.constraints.max-chapter-count（再空则用请求里的 chapterCount 作为单批上限）
+    target-chapters:
+    # 单批章数（每个子作业生成的章数）；留空则用请求里的 chapterCount
+    batch-size:
+    # 最多自动续批多少轮；0 = 不限制（仍有预算熔断与总章数上限兜底）
+    max-batches: 0
+    # 体检分级达到该档即停止自动续批，交人工过问：WATCH / DEGRADED / CRITICAL
+    stop-on-health-level: CRITICAL
+
+  # 章节计划审批门（human-in-the-loop）：本批计划生成并落盘后、正文生成之前，把计划交人工裁决。
+  # **默认关闭**——关闭时节点链与历史逐字节一致（校验后直连正文生成）。
+  # 开启后作业转为 AWAITING_APPROVAL 并**归还线程**（不是阻塞：jobExecutor 是单线程池，
+  # 在工作线程里等待会冻住全部排队作业），裁决/超时后复用同一 jobId 与 run 目录续跑剩余阶段。
+  # 裁决端点：GET /api/jobs/{jobId} 看计划 → POST /api/jobs/{jobId}/chapter-plan/approve|reject
+  # 注意：同步端点 POST /api/story/generate-chapter 不支持本门（会阻塞到全批结束，必撞 HTTP 超时）
+  # 注意：跨阶段批次的计划是惰性分段生成的，本门只拦得到首段计划
+  plan-approval:
+    # 开启后在"计划已校验、正文未写"处挂起作业，工作台出现【章节计划裁决】卡片，
+    # 可就地改 title/goal/keyEvents/章型后放行（人工修订稿会重过机械校验）。
+    # 局限：跨阶段批次的计划是惰性分段生成的，本门只拦得到【首段】计划。
+    enabled: false
+    # 挂起等待裁决的时长（秒）。因不占线程可放宽到小时级，用户不必守在屏幕前
+    timeout-seconds: 600
+    # 超时处置：AUTO_APPROVE = 按 AI 原版计划继续（等同退化成黑盒模式）/ ABORT = 中止本批。
+    # 刻意只有两种：超时必须是"已有状态之一"，否则会引入第三种终局语义
+    timeout-action: AUTO_APPROVE
+    # 作用范围：FIRST_BATCH_ONLY = 仅首批裁决（首批定调，后续是延续；也是与 run-plan 自续批并存的隔离）/ EVERY_BATCH
+    scope: FIRST_BATCH_ONLY
+
+  # 全书总章数上限（完结保护）：enforce-chapter-limit=true 时强制 max-chapter-count，
+  # 续写偏移达到上限即拒绝生成（故事已完结）；本批超出的章节数会被自动截断
+  constraints:
+    enforce-chapter-limit: true
+    max-chapter-count: 188
+
+  # 向量库连接（Qdrant gRPC 端口；6333 为 REST/dashboard，WSL2 localhost 自动转发）
+  vector-store:
+    host: localhost
+    port: 6334
+
+  # 章节审校开关
+  audit:
+    enabled: true
+    enforce-minimum-chapter-length: true
+
+  # 段落信息增量审校（第七期）：挤出「只重复已知状态 / 原地循环情绪」的段落，
+  # 产出**局部改写补丁**（anchor + replacement，不是整章重写——删除不可逆、改写可回退）。
+  # 2026-09-29 由默认 false 改为**启用**：实测第 20 章有效字 4170 而关键事件数仍为 5
+  #（与 2205 字的第 19 章相同），信息密度腰斩，却没有任何环节拦下它——
+  # 长度只查下沿、过渡章被排除在密度统计外，而本组件正是为治注水设计的唯一一环。
+  # 它不需要跨章记忆，是低成本链路；max-patches 限制单章最多接受几条补丁，
+  # 防止一处判错就把整章拆了。首启后建议对照一批看「超长章占比」是否下降。
+  paragraph-audit:
+    enabled: true
+    max-patches: 3
+
+  # 章节修订开关
+  revise:
+    enabled: true
+    max-attempts: 2
+    # 定向补丁（2026-09-17 新增）：BLOCKING 若靠"改一句"能收敛，就不该付整章重写的代价——
+    # 整章重写会把**所有未被问题命中的段落**也一并重出，文风回退风险与修复范围完全不成比例。
+    # 开启后先让模型只产出「原文锚点 → 替换文本」，机械套用（锚点必须逐字唯一，否则整份作废）
+    # 再走同一套采纳闸门；未给出补丁/锚点不合法/补丁不过闸门时自动回退整章重写。
+    # 因为回退存在，关掉它的唯一影响是"少一次便宜的尝试"（补丁输出仅数十 token）
+    patch-enabled: true
+
+  # 候选选优（六期）：审校低置信通过（MINOR 残留/修订过才闭环）时，重写候选，
+  # 机械排序 + 盲评二选一；挑战者复审不过自动回退原稿，保证闸门拒绝率不升。
+  # 重写与评审分别走 scene-models.chapter-rewrite / chapter-judge 两族配置：
+  # 当前 rewrite=qwen3.8-flash（与原稿同族，零消耗），judge=deepseek-v4-flash（异族中立评审两份 qwen 稿）
+  candidate:
+    enabled: true           # 总开关（第二模型族 API 未配置时保持 false，避免每章空转失败）
+    max-candidates: 1        # 2026-10-02 由 2 回到 1。实测候选链路占全批 token 的 36%
+                             # （正文生成只占 17%，候选是它的 2.1 倍），而采纳率仅 40%
+                             # ——每章触发 = 2 次重写（~32k/次）+ 1 次盲评（~6.5k）≈ 71.5k token，
+                             # 六成是纯浪费。降回 1 先把候选链路压到可接受成本，再谈"双候选择优"。
+    trigger-on-minor-residue: false  # 2026-10-02 由 true 改为 false。理由：MINOR 条数**无判别力**——
+                                     # 两批各 5 章的实测中位数都是 6（8/6/5/7/4 与 6/6/6/8），
+                                     # LLM 审计的输出条数是恒定基线，几乎不随质量变化；
+                                     # 门槛设 3 全命中、设 6 仍全命中，只是在一根水平曲线上挪切点。
+                                     # MINOR 残留本是"通过但有笔记"的正常状态，不值整章重写。
+                                     # MINOR 仍照常记债并回灌规划层，只是不再起第二模型族。
+    minor-residue-threshold: 6       # 仅在 trigger-on-minor-residue 重新打开时生效。
+                                     # ⚠️ 重新启用前请先确认有判别力的信号（该门槛本身已被证伪）。
+    trigger-on-revised-pass: true    # **当前唯一有效的触发信号**（采纳率 66.7%）。
+                                     # 2026-09-27 由 false 改为 true：修订后才闭环说明原稿方向偏了。
+    trigger-on-debt: false           # 2026-10-02 新增，默认 false。实测 DEBT 触发 3 次、采纳 **0%**
+                                     # （MINOR_RESIDUE 42.9%、REVISED_PASS 66.7%）。
+                                     # 原因：DEBT 的问题多是结构性的（同一份计划下的同一堵墙），
+                                     # 挑战者同样会撞上；日志 challenger-debt-reverted 出现 2 次即此意。
+                                     # ⚠️ 样本仅 3 次；若后续样本显示采纳率回升，可用本开关重新打开。
+    rewrite-max-tokens: 16384        # 候选重写的单次输出上限（评审调用仍用场景 yml 的小值）
+
+  # 账本挂起裁决（L1 兜底通道）：机械分档（EvidenceMatch）已把可定位的证据全部放行，
+  # 残余的是「仅部分短语命中」的挂起项——它们多为真事实但被模型改写过措辞。
+  # 这里回读当章正文逐条判定，并要求给出可逐字核对的引文；引文须再经 EvidenceMatch 才入账
+  #（拟稿→机械校验：裁决层不会成为绕过反编造门的后门）。
+  # 关掉即零 LLM 成本：残余项保持挂起，完整度停在机械档水平，交观测层统计存量
+  ledger-adjudicate:
+    enabled: true
+    max-items: 12            # 单章单次裁决的挂起项上限（超出部分本章不裁，仍留在挂起层）
+
+  # 预算熔断（防失控 job 烧钱）：按单个作业（一次批次）累计 prompt+completion token。
+  # warn 达预警线打日志；hard 达硬上限后当前章完成即停（逐章检查点已落盘，可 resume 续写）。
+  # usage 流水按 jobId 归因，跨作业的"故事级累计"由每次作业各自熔断叠加保障
+  budget:
+    # 2026-09-27 启用（此前整段注释着——而 candidate 一开就是"每章多两次重写 + 两次评审"，
+    # 没有熔断等于把成本交给运气）。取值依据：实测单批 5 章约 39 万 token、2 章约 22 万、
+    # 规划型大批次约 17 万/章，故 warn 取 ~1.2M（约 5~7 章的 3 倍余量）、hard 取 ~2.5M。
+    # 达 hard 后当前章完成即停，逐章检查点已落盘，可 resume 续写。
+    warn-total-tokens: 1200000
+    hard-total-tokens: 2500000
+
+  # 全书质量评分（2026-09-27）：每 interval-chapters 章按固定 rubric 抽样给近期正文打分，
+  # 连同机械指标（对白比、有效字数、疲劳词）追加写入 memory/quality-trend.jsonl。
+  # 存在的意义：逐章门禁只回答"这章有没有坏"，回答不了"这本书在变好还是变差"；
+  # 没有趋势线时，任何 prompt/模型/预算调整都无法归因，只能靠感觉。
+  # ⚠️ 改动评分维度、权重或判据措辞后**必须递增 rubric-version**，否则趋势线会把两把尺子的读数混成一条曲线。
+  # 评分全程 fail-soft：模型失败或落盘失败都只告警，绝不影响生成主流程。
+  quality-review:
+    enabled: true
+    interval-chapters: 10    # 评分窗口长度（章）
+    sample-size: 3           # 窗口内抽样章数（均匀取值；达到窗口长度则逐章全评）
+    max-chapter-chars: 6000  # 单章送入评分的正文字符上限（超长按头部截断）
+    rubric-version: v1       # 量表版本号：任何影响分数的改动都必须递增
+
+  # 批次计划分支推演（六期）：branches=2 时每段规划出"稳健/进取"两版方向并自评风险，
+  # 由 chapter-judge 场景评审择优后再细化（每段 +2 次规划调用 +1 次评审，频率低可接受）
+  # 2026-10-03 置 0 关闭：分支稿连续两批 4 次调用全部解析失败（模型回吐完整章节计划 JSON，
+  # 与 BranchDirection 小 schema 不符），恒回退稳健线、纯烧调用——待按"多样分支+多样性排序"重写后再开
+  plan:
+    branches: 0
+
+  # 动态参考资料选择器（skill 式按需注入）：索引交给 LLM 挑选，命中的资料全文注入
+  prompt:
+    reference-selector:
+      enabled: true          # 总开关：关闭后不发起选择调用、不注入动态资料
+      cache-enabled: true    # 按 场景+题材+章节类型 缓存选择结果；false 则每章实时选择
+      max-selected: 3        # 单次最多注入的资料份数
+      mode: vector              # llm = LLM 索引选择；vector = 向量语义检索（任何失败快速失败终止作业，不降级 llm）
+      top-k: 3               # 向量检索命中点数（聚合到文件级后受 max-selected 截断）
+      min-score: 0.35        # 向量检索最低相似分（Cosine 越大越相近）；过滤无关命中
+      max-recall-chars: 12000 # 动态资料全文注入字符预算，超出按段落截断
+      # 正文场景的独立预算（2026-09-27 补）：该字段在 Java 里早已存在（ReferenceSelectorProperties
+      # 默认 4000）但 **yml 从未暴露**，于是"把正文资料预算调大"实际上做不到。
+      # 实测题材范例（exemplars.md）经常被 4000 字截断，而示例对文风的牵引远强于一条条禁令——故放宽到 6000。
+      content-scene-recall-chars: 6000
+
+    # 故事记忆层（二期跨章剧情记忆 + 三期人物/世界观记忆）：每章检查点把本章摘要/账本/设定
+    # 幂等写入集合 novel-memory-{故事目录名}，写新章与规划前按相关性检索唤醒注入记忆前缀。
+    # 相关性门控（min-score）+ 字符预算（max-recall-chars）防注水；失败语义（2026-09-29 改为降级留痕）：
+    # **瞬时失败**（限流/5xx/网络 IO/向量库调用异常）先做有界重试（retrieve-max-attempts）；
+    # 重试耗尽或**确定性失败**（欠费/鉴权/参数/未配置）则**降级为空召回 + WARN（RECALL_DEGRADED）**，
+    # 不终止作业——记忆唤醒是增强件，主链路 LLM 调用的欠费/鉴权失败会自行暴露，检索层无需代劳终止。
+    # ⚠️ 降级与"确实无命中"返回的命中表一样（都是空表），故降级状态另落到本章摘要的 recallDegraded
+    # 标记，由体检的「无检索唤醒章数占比」汇总——日志 grep 之外还有可持久化、可汇总的通道。
+    # ⚠️ 与 reference-selector 的"快速失败终止作业"是**有意不一致**：那是质量关键件（选错资料会静默劣化），
+    # 本层是增强件。改任一侧口径前，请先确认这个前提是否仍然成立。
+    # 作业取消（线程中断）不降级、不重试，立即上抛交由上层收敛。
+    story-memory:
+      enabled: true          # 总开关：关闭后不索引、不检索，前缀不含唤醒节
+      collection-prefix: novel-memory
+      top-k: 10              # 检索候选池大小（章节/账本/设定混排，分数降序）。
+                             # 2026-09-27 由 6 提到 10：每章只写 4~6 个记忆点，188 章约 900 点，
+                             # top-k=6 仅覆盖 0.7%，长程回唤基本抓不到东西。
+                             # 2026-09-28 澄清：真正决定**注入条数**的是 max-recall-chars——
+                             # top-k 只是候选池（预算装不下时按分数贪心跳过），故取值应 ≥ 预算/600，
+                             # 池子小了预算就填不满（现值 10 对 2000 字预算留有余量，不必再调大）
+      min-score: 0.35        # 最低相似分（Cosine）；低于则丢弃，防无关记忆注水
+      max-recall-chars: 2000 # 唤醒节注入字符预算（按分数降序贪心累计，装不下的候选跳过）。
+                             # 2026-09-27 由 600 提到 2000，且**首条命中同样受预算约束**：
+                             # 旧实现"至少保留首条"会让单条 2000~3000 字的整章记忆原样进前缀，
+                             # 实测「唤醒」块在 129~3166 字之间剧烈波动——预算形同虚设。
+                             # 修好后上限才真正绑定，这个数值才谈得上"调大一点"。
+      retrieve-max-attempts: 3  # 检索瞬时失败的最大尝试次数（含首次，1=不重试）。
+                                # 2026-09-28 新增：此前"任何失败立即终止作业"，一次网络抖动
+                                # 或 Qdrant 瞬断就会杀死整批挂机（向量检索侧无任何重试）；
+                                # embedding 网关自身已重试 3 次，此处的重试覆盖更长抖动与向量库侧。
+      world-collection-prefix: novel-world  # 世界集合名前缀（五期）：实际集合名 = 前缀 + "-" + worldId
+      # world-min-score: 0.35               # 世界集合最低相似分；注释掉则回退 min-score
+
+    # 正文前缀总预算：块级封顶之上的最后一道总额约束。
+    # 前缀由末态红线/境界锁定/前情记忆(10 个子块)/风格门禁/一致性索引/禁泄清单等拼成，每块都有独立封顶，
+    # 但"封顶之和"会随块数增长击穿模型输入窗口（每轮迭代都在加新块，没有任何一处在管总数）。
+    # 超限时 PromptBudgetGuard 按优先级淘汰（刻度见其类注释）：先弃情节模式黑名单/文风指纹/久远唤醒等软提示，
+    # 核心块（末态红线、境界锁定、近章摘要、偏差警示、质量债）最后才动；可截断块按段落边界截断并标注，
+    # 不可截断块（禁泄清单/境界锁定）放不下整块弃。
+    # 每次装配一行 INFO（grep「前缀预算」得各块字数与占比），预算触及核心块或占比≥90% 时升 WARN。
+    budget:
+      total-prefix-chars: 18000  # 上限（字符）；<=0 关闭总额约束（退化为逐块直拼，便于对比排查）。
+                                 # 定标口径（2026-09-28 重估，作废旧"实测 6000~9000 字"——该实测在卷方向锚
+                                 # 上线前取得，已过期）：记忆各节常态合计约 8k~13k（近章摘要、三账本、
+                                 # 伏笔账、唤醒≤2000、卷方向锚 0.4k~1k），其余块常态约 3k~5k，
+                                 # 合计约 11k~18k；长连载满载（账本活跃 10 章、债务满 10 条、唤醒 2000）
+                                 # 可达上限。故本值只保证"覆盖常态"，不再声称"约一倍余量"。
+                                 # 真伪由日志判定：常态占比应 <80%，长期 ≥90% 或出现 WARN 即回查
+                                 # 是哪个块在膨胀（grep 该块 label 的字数），而不是直接调大这个数。
+      plan-prefix-chars: 20000   # 章节计划**输入段**（故事设定 + 记忆前缀）上限（字符）；<=0 关闭。
+                                 # 2026-09-28 补：规划 prompt 此前输入段完全无界（记忆前缀随连载增长、
+                                 # 设定段随设定增补），而固定要求与 schema 段不可裁；故只约束输入段。
+                                 # 20000 的余量依据：两段常态合计约 10k~13k，触发即为异常信号。
+                                 # 注：该入口仍按"整块"消费记忆前缀，整块截尾牺牲的是尾部（账本/警示类），
+                                 # 计划关注的方向/摘要/伏笔在头部，故危害有限；若后续规划改用分块装配，
+                                 # 需为其单独定优先级刻度。

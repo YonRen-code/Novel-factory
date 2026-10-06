@@ -1,0 +1,351 @@
+package cn.novel.yonren.domain.novel.service.armory.memory;
+
+import cn.novel.yonren.domain.novel.model.entity.StyleStatEntity;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * 风格统计服务：机械层的风格账本——跨章逐字重复句查重 + 疲劳词计数，
+ * 纯代码统计不经过 LLM，治"古镜发热/咽下血沫"式的跨章路径依赖。
+ * 数据随正文逐章滚动合并，与三账本同思路：确定性重建、检查点落盘、前缀注入警示
+ */
+@Service
+public class StyleStatService {
+
+    /** 长句判定下限：短于此的句子不参与查重（称呼、短句复用是正常文体） */
+    public static final int MIN_SENTENCE_LENGTH = 10;
+    /** 已见句集滚动上限（挤出最老句子，防无界增长） */
+    public static final int MAX_USED_SENTENCES = 80;
+    /** 跨章重复句保留上限（警示渲染用） */
+    public static final int MAX_REPEATED_SENTENCES = 20;
+    /** 警示渲染的重复句条数上限 */
+    private static final int RENDER_REPEATED_COUNT = 10;
+    /** 疲劳词警示阈值：全篇出现达到该次数即进超频名单 */
+    public static final int FATIGUE_THRESHOLD = 5;
+
+    /**
+     * 近重复判定的相似度下限：字符 3-gram 的 Jaccard 相似度。
+     *
+     * <p><b>为什么需要它</b>：查重原先用精确 {@code equals}，而模型最爱的重复方式是"改一两个字"——
+     * 实测第 9/10 章结尾仅差一个"他"字：
+     * 「枕头底下，那根烟硌着<b>他</b>的后脑勺，像一根小小的骨头」，
+     * 精确匹配下跨章重复句统计结果为 <b>0 条</b>，等于完全失明。
+     *
+     * <p>取 0.70 依据实测：上述一对句子的 3-gram Jaccard ≈ 0.77（会被捕获）；
+     * 而"同结构但不同内容"的句子（如"他低头看自己的手"vs"他低头看自己的脚"）虽相似，
+     * 其 Jaccard 低于该线。该判据只影响<b>风格警示与 MINOR 记账</b>，不进 BLOCKING 闸门，
+     * 故取偏保守的阈值：宁可漏报也不要把正常文体误标成重复。
+     */
+    private static final double NEAR_DUPLICATE_JACCARD = 0.70;
+
+    /** 近重复判定的 n-gram 阶数（中文按字取 3 元，兼顾敏感度与噪声） */
+    private static final int NEAR_DUPLICATE_NGRAM = 3;
+
+    /** 疲劳词表：与单章机械门禁共用 assets/rules/fatigue-patterns.txt（FatiguePatternCatalog），
+     * 覆盖 anti-ai-tone.md 第二节"AI 万能副词"与第三节"空洞神态/情绪词"判据；改词只改 txt 文件 */
+    private static final List<String> FATIGUE_WORDS =
+            cn.novel.yonren.domain.novel.service.armory.quality.FatiguePatternCatalog.get().all();
+
+    /** 指纹句长度下限（高信息密度长句，与重复句查重下限区分开） */
+    public static final int FINGERPRINT_MIN_LENGTH = 18;
+    /** 指纹句长度上限（过长的段落句不适合做风格示例） */
+    public static final int FINGERPRINT_MAX_LENGTH = 60;
+    /** 单章提取条数上限 */
+    public static final int FINGERPRINT_PER_CHAPTER = 2;
+    /** 指纹库滚动上限（FIFO 挤出最老） */
+    public static final int MAX_FINGERPRINTS = 50;
+
+    /**
+     * 空统计（新故事起点）
+     */
+    public StyleStatEntity empty() {
+        return StyleStatEntity.builder()
+                .usedSentences(new ArrayList<>())
+                .repeatedSentences(new ArrayList<>())
+                .fatigueWords(new LinkedHashMap<>())
+                .build();
+    }
+
+    /**
+     * 滚动合并一章正文：长句查重（与已见句集相交即记为跨章重复）→ 新句并入 → 疲劳词累加
+     */
+    public void merge(StyleStatEntity stat, String content) {
+        if (stat == null || StringUtils.isBlank(content)) {
+            return;
+        }
+        String normalized = content.replace("\\n", "\n");
+        for (String raw : splitSentences(normalized)) {
+            String sentence = raw.trim();
+            // 短句不参与查重（称呼、短句复用是正常文体）
+            if (sentence.length() < MIN_SENTENCE_LENGTH) {
+                continue;
+            }
+            if (isRepeat(stat.getUsedSentences(), sentence)) {
+                if (!stat.getRepeatedSentences().contains(sentence)) {
+                    stat.getRepeatedSentences().add(sentence);
+                    if (stat.getRepeatedSentences().size() > MAX_REPEATED_SENTENCES) {
+                        stat.getRepeatedSentences().remove(0);
+                    }
+                }
+            } else {
+                stat.getUsedSentences().add(sentence);
+                if (stat.getUsedSentences().size() > MAX_USED_SENTENCES) {
+                    stat.getUsedSentences().remove(0);
+                }
+            }
+        }
+        for (String word : FATIGUE_WORDS) {
+            int count = countOccurrences(normalized, word);
+            if (count > 0) {
+                stat.getFatigueWords().merge(word, count, Integer::sum);
+            }
+        }
+    }
+
+    /**
+     * 是否与已见句集重复：精确相等，**或**近重复（改一两个字）。
+     * 近重复是模型最偏爱的重复方式——只看精确相等会整类漏掉（实测跨章精确重复 0 条，
+     * 而第 9/10 章结尾仅差一个"他"字）。
+     */
+    private static boolean isRepeat(List<String> usedSentences, String sentence) {
+        for (String used : usedSentences) {
+            if (used.equals(sentence) || isNearDuplicate(used, sentence)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 近重复：字符 n-gram 的 Jaccard 相似度达阈值。
+     * 长度差超过一倍时先短路——那已经不是"改一两个字"，既省算力也避免误判。
+     */
+    static boolean isNearDuplicate(String a, String b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        int maxLen = Math.max(a.length(), b.length());
+        int minLen = Math.min(a.length(), b.length());
+        if (minLen < MIN_SENTENCE_LENGTH || maxLen > minLen * 2) {
+            return false;
+        }
+        Set<String> ga = ngrams(a);
+        Set<String> gb = ngrams(b);
+        if (ga.isEmpty() || gb.isEmpty()) {
+            return false;
+        }
+        Set<String> intersection = new HashSet<>(ga);
+        intersection.retainAll(gb);
+        Set<String> union = new HashSet<>(ga);
+        union.addAll(gb);
+        return !union.isEmpty() && (double) intersection.size() / union.size() >= NEAR_DUPLICATE_JACCARD;
+    }
+
+    /** 字符 n-gram 集合；文本短于 n 时退化为整串（避免空集导致除零与漏判） */
+    private static Set<String> ngrams(String text) {
+        Set<String> grams = new HashSet<>();
+        if (text.length() < NEAR_DUPLICATE_NGRAM) {
+            grams.add(text);
+            return grams;
+        }
+        for (int i = 0; i + NEAR_DUPLICATE_NGRAM <= text.length(); i++) {
+            grams.add(text.substring(i, i + NEAR_DUPLICATE_NGRAM));
+        }
+        return grams;
+    }
+
+    /**
+     * 渲染风格警示节（拼入下一章记忆前缀）；无重复句且无超频词时返回空串
+     */
+    public String renderWarning(StyleStatEntity stat) {
+        if (stat == null) {
+            return "";
+        }
+        List<String> overused = stat.getFatigueWords().entrySet().stream()
+                .filter(e -> e.getValue() >= FATIGUE_THRESHOLD)
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .map(e -> e.getKey() + "(" + e.getValue() + "次)")
+                .collect(Collectors.toList());
+        if (stat.getRepeatedSentences().isEmpty() && overused.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder("==== 以下为风格警示，本章必须遵守 ====\n");
+        if (!stat.getRepeatedSentences().isEmpty()) {
+            sb.append("【跨章重复句】以下句子已在早期章节出现过，或与早期句子高度相似（仅改一两个字也算），"
+                    + "同类句式严禁再次使用——换一个切入角度或落笔对象，而不是换个词重说一遍：\n");
+            List<String> recent = stat.getRepeatedSentences();
+            recent.stream()
+                    .skip(Math.max(0, recent.size() - RENDER_REPEATED_COUNT))
+                    .forEach(s -> sb.append("- ").append(s).append("\n"));
+        }
+        if (!overused.isEmpty()) {
+            sb.append("【疲劳词超频】以下词全篇已超频，本章禁用或至多出现一次：")
+                    .append(String.join("、", overused)).append("\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 渲染修订侧疲劳词禁新增名单（注入修订 prompt）：全文词表 + 已累计逼近/达到阈值的词点名。
+     *
+     * <p>2026-10-03 措辞同步：风格账闸已降级为"只告知不拒稿"（修订优先修 BLOCKING），
+     * 故不再声称"即拒稿"——但新增仍会推高全书累计、由后续每一章的风格警示承担代价，措辞如实说明。
+     */
+    public String renderReviseFatigueBlacklist(StyleStatEntity stat) {
+        StringBuilder sb = new StringBuilder("【疲劳词禁新增名单】修订稿严禁新增或推高以下词的全书累计次数（跨章累计达到")
+                .append(FATIGUE_THRESHOLD).append("次即进入全书风格警示，代价由后续每一章承担）：");
+        for (String word : FATIGUE_WORDS) {
+            sb.append("、").append(word);
+        }
+        sb.append("\n注意：即便原稿某词未超频，修订稿也绝不能在全书累计上再推高它。");
+        List<String> nearLimit = nearLimitWords(stat);
+        if (!nearLimit.isEmpty()) {
+            sb.append("\n【已逼近阈值的词】").append(String.join("、", nearLimit)).append("——修订中绝对禁止再出现");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 渲染正文侧疲劳词预警名单（前置注入正文 prompt）：把机械门禁的词表与红线提前亮给模型，
+     * 治"初稿必超标、靠修订擦屁股"——初稿就少犯，比每章烧一轮修订更省。
+     * 逼近阈值的词与修订侧同一判定口径（≥阈值-1）。
+     */
+    public String renderContentFatigueBlacklist(StyleStatEntity stat) {
+        StringBuilder sb = new StringBuilder("【疲劳词预警名单】以下词受机械门禁监控（万能副词单章密度超 3 次/千字、")
+                .append("眼神套话全章合计 2 次、同一身体套话词条全章 2 次，即打回修订），本章写作请主动避免：");
+        for (String word : FATIGUE_WORDS) {
+            sb.append("、").append(word);
+        }
+        List<String> nearLimit = nearLimitWords(stat);
+        if (!nearLimit.isEmpty()) {
+            sb.append("\n【已逼近阈值的词】").append(String.join("、", nearLimit)).append("——本章绝对禁止再出现");
+        }
+        return sb.toString();
+    }
+
+    /** 全书累计已逼近/达到阈值（≥阈值-1）的疲劳词：正文/修订两侧 prompt 共用同一判定口径 */
+    private List<String> nearLimitWords(StyleStatEntity stat) {
+        if (stat == null || stat.getFatigueWords() == null) {
+            return List.of();
+        }
+        return FATIGUE_WORDS.stream()
+                .filter(w -> stat.getFatigueWords().containsKey(w))
+                .filter(w -> stat.getFatigueWords().get(w) >= FATIGUE_THRESHOLD - 1)
+                .map(w -> w + "（全书已累计" + stat.getFatigueWords().get(w) + "次）")
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 提取高信息密度句作为本书文风指纹（正向激励，补"只有黑名单没有白名单"）：
+     * 仅"审校全票通过"（GateResult.CLEAN_PASS）的章节由调用方提取入库。
+     * 机械判据：句长 18-60、不含疲劳词；含数字者优先（硬信息密度信号），其次取更长句。
+     * 返回至多 {@link #FINGERPRINT_PER_CHAPTER} 条
+     */
+    public List<String> extractFingerprints(String content) {
+        if (StringUtils.isBlank(content)) {
+            return List.of();
+        }
+        String normalized = content.replace("\\n", "\n");
+        List<String> candidates = new ArrayList<>();
+        for (String raw : splitSentences(normalized)) {
+            String sentence = raw.trim();
+            if (sentence.length() < FINGERPRINT_MIN_LENGTH || sentence.length() > FINGERPRINT_MAX_LENGTH) {
+                continue;
+            }
+            if (containsFatigueWord(sentence)) {
+                continue;
+            }
+            candidates.add(sentence);
+        }
+        candidates.sort(Comparator
+                .comparingInt((String s) -> containsDigit(s) ? 1 : 0).reversed()
+                .thenComparing(Comparator.comparingInt(String::length).reversed()));
+        return candidates.stream().limit(FINGERPRINT_PER_CHAPTER).collect(Collectors.toList());
+    }
+
+    /**
+     * 指纹库滚动合并：新句插到尾部（最新文风优先展示），FIFO 挤出最老，上限 {@link #MAX_FINGERPRINTS}。
+     * 防御 null 入参；指纹句本身已在 usedSentences 中（正文合并时已收录），后续章节逐字复用
+     * 会被既有跨章重复句查重命中，与"禁止逐字复用"的注入措辞形成自洽闭环
+     */
+    public void mergeFingerprints(List<String> fingerprints, List<String> additions) {
+        if (fingerprints == null || additions == null || additions.isEmpty()) {
+            return;
+        }
+        for (String sentence : additions) {
+            if (StringUtils.isNotBlank(sentence) && !fingerprints.contains(sentence)) {
+                fingerprints.add(sentence);
+            }
+        }
+        while (fingerprints.size() > MAX_FINGERPRINTS) {
+            fingerprints.remove(0);
+        }
+    }
+
+    /**
+     * 渲染文风基准节（注入正文 prompt）：示例句代表本书已建立的密度与句式节奏，
+     * 明令对齐而非逐字复用（复用会被跨章重复句查重命中）
+     */
+    public String renderFingerprints(List<String> fingerprints) {
+        if (fingerprints == null || fingerprints.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("==== 以下为本书已建立的文风基准 ====\n");
+        sb.append("以下句子出自本书已定稿章节，代表本书确立的信息密度与句式节奏。")
+                .append("写作时对齐其密度与节奏，但严禁逐字复用其中任何一句（跨章重复句查重会命中）：\n");
+        for (String sentence : fingerprints) {
+            sb.append("- ").append(sentence).append("\n");
+        }
+        return sb.toString();
+    }
+
+    private boolean containsFatigueWord(String sentence) {
+        for (String word : FATIGUE_WORDS) {
+            if (sentence.contains(word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsDigit(String sentence) {
+        for (int i = 0; i < sentence.length(); i++) {
+            if (Character.isDigit(sentence.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 按中英文句末符与换行切句
+     */
+    private List<String> splitSentences(String text) {
+        return Arrays.stream(text.split("[。！？…\\n]+"))
+                .map(String::trim)
+                .filter(StringUtils::isNotEmpty)
+                .collect(Collectors.toList());
+    }
+
+    private int countOccurrences(String text, String word) {
+        int count = 0;
+        int idx = 0;
+        while ((idx = text.indexOf(word, idx)) >= 0) {
+            count++;
+            idx += word.length();
+        }
+        return count;
+    }
+
+}

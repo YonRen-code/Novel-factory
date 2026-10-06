@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  测试专用日志配置。
+  存在意义：wrench 框架 jar 内嵌了 slf4j 1.7 绑定与旧版 logback Configurator 接口类，
+  测试 JVM 初始化日志时若走 ServiceLoader 自动配置路径会与 spring-boot 的
+  RootLogLevelConfigurator 发生 AbstractMethodError；提供 logback-test.xml 后
+  logback 在该路径之前完成初始化，绕开冲突。
+-->
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

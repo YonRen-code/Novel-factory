@@ -1,0 +1,1 @@
+docker stop novel_factory

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="U5Gn0pbkOFXrncRoGRFBzr">
+<head data-page-node-id="sawhLKoxbEcXVNkeWqEEIr">
+    <meta charset="UTF-8" data-page-node-id="QYXBahDQlfcAP2827FKLDo">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="8sLYgkHO9NSfcylfa8tyUO">
+    <title>Novel Factory · 小说装配线</title>
+    <link rel="stylesheet" href="style.css" data-page-node-id="njce1GWWRJakUhAUukzdHE">
+</head>
+<body data-page-node-id="HR1gysp1ogdC9U0cmacZqK">
+    <!-- ==================== 登录页：粒子星野 + 霓虹卡片 ==================== -->
+    <div id="login-page" class="page active" data-page-node-id="mC6vNihZz4vpw1szLeCfGz">
+        <div class="login-scene" data-page-node-id="58JCmdNdrHtpJ8oxXXYJao">
+            <canvas id="particles" data-page-node-id="sdxLfTmlLNGqmPC7GFQm14"></canvas>
+            <button id="btn-theme-login" class="theme-float theme-toggle" type="button" data-page-node-id="jr7qvod8leQT0MNcz36ITE">浅色</button>
+
+            <div class="login-card" data-page-node-id="VteLaiJWUChKOu6GJTxMqV">
+                <div class="logo" data-page-node-id="PUx2kgguSsC0i7B8nn58hE">
+                    <span class="neon-text" data-page-node-id="2vo1bMLsuM2wDLa5leBgV8">NOVEL</span>
+                    <span class="neon-text" data-page-node-id="9NORpx8M3f9QKG39UkMmXd">FACTORY</span>
+                </div>
+
+                <h1 data-page-node-id="ii1AJuDTBRZRMTIEOYeqcq">欢迎回来</h1>
+                <p class="subtitle" data-page-node-id="t5XuyM6g6j4MmM6984n0LP">登录你的小说装配线</p>
+
+                <form id="login-form" data-page-node-id="9SABeh662jItKy7xS8ladz">
+                    <div class="input-group" data-page-node-id="UH7OgU8aQLAeKguk4qUnms">
+                        <label data-page-node-id="G3OEXuFQQAhQjR37iLWZVA">账号</label>
+                        <input type="text" id="username" placeholder="请输入用户名" required autocomplete="username" data-page-node-id="fGkVKnqM04T4MflqV2an8b">
+                    </div>
+                    <div class="input-group" data-page-node-id="DBielnywxaSrdxWcAXdliw">
+                        <label data-page-node-id="7jbmj4rtnPFPkgokCZDH5R">密码</label>
+                        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" data-page-node-id="bTh194UFEFVhjy0jyi0uBa">
+                    </div>
+                    <div id="login-error" class="error-message hidden" data-page-node-id="i9USxNafkv6PnEphar04T6"></div>
+                    <button type="submit" class="login-btn" data-page-node-id="eYOBSMS3iPyGQP7rxUDBfq">登录</button>
+                </form>
+
+                <div class="links" data-page-node-id="NxOPIxVCAkCnVQhqOhto9q">
+                    <a href="#" onclick="showRegister(); return false;" data-page-node-id="GkJrdaxuK8RlvwcVXEwPvq">注册新账号</a>
+                    <a href="#" onclick="showForgotPassword(); return false;" data-page-node-id="tVFrN4XSJzDn1MKzOPSsdF">忘记密码？</a>
+                </div>
+
+                <div class="social" data-page-node-id="z7wuR59kX1M1K04MHyYjMJ">
+                    <button onclick="socialLogin('google')" data-page-node-id="YXM1FGe8XzY0uszQvY04VR">Google</button>
+                    <button onclick="socialLogin('github')" data-page-node-id="NTQHigaSOiyZOzPmpVy6XW">GitHub</button>
+                    <button onclick="socialLogin('wechat')" data-page-node-id="QENOw868qcBOzbPzD4pUq1">微信</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 主应用 ==================== -->
+    <div id="app-page" class="page" data-page-node-id="rKOaQO847OK3L1albNbevB">
+        <header class="app-header" data-page-node-id="VGLTbXtShOco3nrjyC6OSt">
+            <div class="header-content" data-page-node-id="G6TRtfKlvH3bYWtWMpA3ee">
+                <div class="wordmark" data-page-node-id="NgX300WOTNdOTAG0N9kXGk">
+                    <span class="mark-dot" data-page-node-id="dtVwudsDISh7drHD5wJcJ9"></span>
+                    <span class="mark-zh" data-page-node-id="BkFSdbamTGkQc1O1VPhPCD">小说装配线</span>
+                    <span class="mark-en" data-page-node-id="sriEuepWJDJOoCQfW9W8fS">NOVEL·ASSEMBLY·LINE</span>
+                </div>
+                <nav class="app-nav" data-page-node-id="aDBdGMnUnvGsWRomhhVEQJ">
+                    <button class="nav-tab active" data-tab="generate" data-page-node-id="r5psi54G5YmkSyxSlmKxia">
+                        <span class="tab-no" data-page-node-id="okAmeEEJPNyUOUfkoR1gi9">01</span>
+                        <span data-page-node-id="fMrooHuZlT3LsMgJaAXClG">生成</span>
+                    </button>
+                    <button class="nav-tab" data-tab="library" data-page-node-id="nPcV5O2ZPriwwOWVVLiug3">
+                        <span class="tab-no" data-page-node-id="nH5Km9Lz496smh8RHCDlZU">02</span>
+                        <span data-page-node-id="2p1Otw5yGX9zbA7xzZM4Ku">小说库</span>
+                    </button>
+                    <button class="nav-tab" data-tab="settings" data-page-node-id="GYzdLsq8uHIw5QJOZkfYCy">
+                        <span class="tab-no" data-page-node-id="1rS3kA1RSg2IVFm8dQjTZY">03</span>
+                        <span data-page-node-id="dlByrlRiW95MEuUKxjAaoE">设置</span>
+                    </button>
+                </nav>
+                <button id="btn-theme" class="btn-logout theme-toggle" type="button" data-page-node-id="hPgE0oRWe8r2vLahsLcAFl">浅色</button>
+                <button id="btn-logout" class="btn-logout" type="button" data-page-node-id="W5jUKfAfoeYMtHJeTa9UBE">刷新</button>
+            </div>
+        </header>
+
+        <main class="app-main" data-page-node-id="IVQCBskvRlSvTfksiXNWcG">
+            <!-- 生成 -->
+            <section id="tab-generate" class="tab-content active" data-page-node-id="i0W9GRBd25nkUxGjLVcxjj">
+                <!-- 一键生成设定集：只给题材就产出整套设定，再逐项手改 / 单字段重生成 -->
+                <div id="draft-card" class="content-card">
+                    <div class="section-label">ONE-CLICK DRAFT</div>
+                    <h2 class="section-title">一键生成设定集</h2>
+                    <p class="settings-hint">
+                        一句话就够：AI 产出书名、风格、世界观、视角、目标人群、基调、主人公、
+                        <strong>故事大纲</strong>、章节目标与建议总章数，并回填到下方表单。
+                        不满意的字段可以点它旁边的「↻」只换那一个，也可以整份重来；
+                        「只重生成大纲」只动故事大纲，其余字段会被锁定不变。
+                    </p>
+                    <div class="form-group full-width">
+                        <label>常用题材（点一下写入下方「题材」栏）</label>
+                        <div id="theme-presets" class="draft-presets"></div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="draft-hints">额外要求（可选，作为硬约束交给 AI）</label>
+                        <textarea id="draft-hints" rows="4" placeholder="如：想要双男主，不要系统流；结局留白，不要大团圆"></textarea>
+                    </div>
+                    <div id="draft-status" class="config-status hidden"></div>
+                    <div class="form-actions">
+                        <button type="button" id="btn-draft-all" class="btn-primary">一 键 生 成 设 定 集</button>
+                        <button type="button" id="btn-draft-outline" class="btn-secondary">只 重 生 成 大 纲</button>
+                    </div>
+                </div>
+                <div class="content-card" data-page-node-id="XeEWX2S6O7AHQgQ34aFNL0">
+                    <div class="section-label" data-page-node-id="GkSSKGTce4ATv8Nkbq9AME">CREATE</div>
+                    <h2 class="section-title" data-page-node-id="yr1GZv4OWGgxAdt1iUWb3l">创建新故事</h2>
+                    <form id="generate-form" data-page-node-id="g6xzfAUy1ZfkeSRbbJJTaf">
+                        <div class="form-grid" data-page-node-id="3CaOwBaHCsHes8Udd6Viac">
+                            <div class="form-group" data-page-node-id="BGtgR7Cq56Du7dSi7zh1Am">
+                                <label for="novel_title" data-page-node-id="U3blf0KWnBV4UcwKpZntI6">小说名称 <span class="required" data-page-node-id="QkYC9JggYhCUf5OVwcjLnB">*</span></label>
+                                <input type="text" id="novel_title" name="novel_title" required data-page-node-id="FzYXAYSqZzVTBfnlg9wFqZ">
+                            </div>
+                            <div class="form-group" data-page-node-id="FoD1pPt9VgVtLfq04PDncS">
+                                <label for="theme" data-page-node-id="ClI82dIhEW98ZDyFBLV4NX">题材</label>
+                                <input type="text" id="theme" name="theme" placeholder="都市异能" data-page-node-id="wU1aMSMErspKz771C2I4Eq">
+                            </div>
+                            <div class="form-group" data-page-node-id="BILODHEdT4YM4ry46LuWBb">
+                                <label for="style" data-page-node-id="BITsu0tWDCCUgDupoM7I2Q">风格</label>
+                                <textarea id="style" name="style" rows="3" placeholder="逆袭打脸爽文"></textarea>
+                            </div>
+                            <div class="form-group" data-page-node-id="sTQtvTEmplgAucj74HiLYh">
+                                <label for="perspective" data-page-node-id="FcGcfiVGOGVo0GITkYDCqL">视角</label>
+                                <textarea id="perspective" name="perspective" rows="3" placeholder="第三人称视角"></textarea>
+                            </div>
+                            <div class="form-group" data-page-node-id="b0EDHFZhsreEUdMNcSCRw7">
+                                <label for="targetAudience" data-page-node-id="CfrICoRrory1hK2AIxIfsj">目标人群</label>
+                                <textarea id="targetAudience" name="targetAudience" rows="3" placeholder="男频"></textarea>
+                            </div>
+                            <div class="form-group" data-page-node-id="UO0blqkBUAeqCyzGzKhXlf">
+                                <label for="tone" data-page-node-id="Q9cltaC64NtHkzQHb5nUSx">基调</label>
+                                <textarea id="tone" name="tone" rows="3"></textarea>
+                            </div>
+                            <div class="form-group full-width" data-page-node-id="sMT2pSNAvcoR6spCACvP3v">
+                                <label for="worldSetting" data-page-node-id="Bij6sTciFftAECARwFgnWR">世界观</label>
+                                <textarea id="worldSetting" name="worldSetting" rows="7" placeholder="描述故事的世界背景..."></textarea>
+                            </div>
+                            <div class="form-group full-width" data-page-node-id="hNooDMCPrL9Gy9XBmT33A8">
+                                <label for="protagonist" data-page-node-id="QTHEeEGHPiLufZkVQsqlvk">主人公</label>
+                                <textarea id="protagonist" name="protagonist" rows="7" placeholder="描述主角的性格、背景..."></textarea>
+                            </div>
+                            <div class="form-group full-width" data-page-node-id="xrRmNOIg1iZ9sIagjaHOQq">
+                                <label for="outline" data-page-node-id="5GNtI5szrBiYN6F5ynj31w">故事大纲</label>
+                                <textarea id="outline" name="outline" rows="14" placeholder="故事走向：主角初始处境、核心冲突、主要障碍、关键转折、结局方向..."></textarea>
+                            </div>
+                            <div class="form-group" data-page-node-id="T9CcfuAA4tf1Hua8QhmTpH">
+                                <label for="chapterCount" data-page-node-id="zA9qnpjcT4dRTGUotAgMFY">本次生成章数</label>
+                                <input type="number" id="chapterCount" name="chapterCount" min="1" value="5" data-page-node-id="sTeHaUEQnGbk7RJxRiktah">
+                            </div>
+                            <div class="form-group">
+                                <label for="maxChapterCount">全书总章数（上限）</label>
+                                <input type="number" id="maxChapterCount" name="maxChapterCount" min="1" placeholder="由「一键生成」给建议值">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="resumeStoryDir">续写已有故事（可选）
+                                    <button type="button" id="btn-reload-stories" class="regen-btn" title="重新拉取故事列表">↻</button>
+                                </label>
+                                <select id="resumeStoryDir" name="resumeStoryDir">
+                                    <option value="">（新建故事 · 不续写）</option>
+                                </select>
+                                <div id="resume-hint" class="resume-hint hidden"></div>
+                            </div>
+                            <div class="form-group" data-page-node-id="Cyxnd6kRWJLFZpYNHXAcCb">
+                                <label for="worldId" data-page-node-id="AVNT6usPOQLPDQNADKCxvM">世界 ID</label>
+                                <input type="text" id="worldId" name="worldId" placeholder="可选，系列共享" data-page-node-id="QSnhioEnoNKlCER4GpZCbw">
+                            </div>
+                            <div class="form-group full-width" data-page-node-id="YrgXYx9lnu8WgFBOeC1r61">
+                                <label for="chapterGoal" data-page-node-id="YQl4qIMaJorolstli9FRoO">章节目标</label>
+                                <textarea id="chapterGoal" name="chapterGoal" rows="5" placeholder="本章要达成的目标..."></textarea>
+                            </div>
+                        </div>
+                        <div class="form-actions" data-page-node-id="rR0u7RywQM6FVyDof8sCyR">
+                            <button type="submit" id="btn-submit" class="btn-primary" data-page-node-id="YKkfMILi5tJ4CX4v76kB4t">开 始 生 成</button>
+                            <button type="button" id="btn-cancel" class="btn-secondary" disabled data-page-node-id="OZERLgK5ryPJABfvlXCKnR">取消作业</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 进度：专属区块，标题"进度"，下方字符进度条每章开始时推进一格 -->
+                <div id="progress-card" class="content-card hidden" data-page-node-id="HO6nzw8DE4jGG0ik38eSQa">
+                    <div class="section-label" data-page-node-id="1nvIqMPJzzUKEbaMyrHu5W">PROGRESS</div>
+                    <h3 class="status-title" data-page-node-id="UM9UW7y5dIRDw24PVmMHys">进度</h3>
+                    <div id="progress-bar" class="progress-bar" data-page-node-id="ZoZnBBvm0K2nFqlsJuS0jY">[--------------------------]</div>
+                    <div id="progress-meta" class="progress-text" data-page-node-id="aO3Ty3THSEm4iaq1CSB8ix">等待作业提交...</div>
+                </div>
+
+                <div id="job-status" class="content-card hidden" data-page-node-id="epctRiFCzBjoR8ggyFd3o0">
+                    <div class="section-label" data-page-node-id="QpWnTljWzlqYl7cVbXYZIk">JOB STATUS</div>
+                    <h3 class="status-title" data-page-node-id="8JVcnGdHRtrMeKYXehYCSv">作业状态</h3>
+                    <div id="status-detail" data-page-node-id="26zzmekPirmWAgjCBTHNrY"></div>
+                    <!-- 作业中断（失败/取消）且已有落盘章节时出现：接着最后一章往下续，不重写已完成的章 -->
+                    <div id="resume-action" class="resume-action hidden">
+                        <p id="resume-action-hint" class="settings-hint"></p>
+                        <div class="form-actions">
+                            <button type="button" id="btn-resume-failed" class="btn-primary">继 续 生 成</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 章节计划裁决（human-in-the-loop）：仅当作业进入 AWAITING_APPROVAL 时出现。
+                     对应后端 yml story.plan-approval.enabled=true；关闭时此卡片永不出现，页面行为不变 -->
+                <div id="approval-card" class="content-card hidden" data-page-node-id="Gpw3sy9GHUtrl2sz22OQly">
+                    <div class="section-label" data-page-node-id="hif3Q4FFF46wZgTwNDoPcF">PLAN REVIEW</div>
+                    <div class="list-header" data-page-node-id="MsalV4UGzVfWVfNFwHGbT2">
+                        <h3 class="status-title" data-page-node-id="1BaSg6qyDXYFNrZzg7QFN0">章节计划裁决</h3>
+                        <span id="approval-countdown" class="approval-countdown" data-page-node-id="wcWVHUegcWuZi53AKrgnpy"></span>
+                    </div>
+                    <p id="approval-hint" class="settings-hint" data-page-node-id="8lfyy5ECCRu45WzxJ9g53G"></p>
+                    <p class="settings-hint" data-page-node-id="FV8tLpueVgkw3Xd8MyNa0p">
+                        「采纳并通过」直接放行 AI 原版；就地修订后通过时，后端会重新做结构机械校验
+                        （章数、章号连续、编号唯一、标题/目标/关键事件非空），校验不过会退回本卡片继续改。
+                        章号与章数由系统决定，不参与修改；驳回将中止本批，计划仍保留在 run 目录。
+                    </p>
+                    <div id="approval-plan" class="approval-plan" data-page-node-id="XSBZljlE0B2STnvRpYEvPA"></div>
+                    <div id="approval-error" class="approval-error hidden" data-page-node-id="U8mTmIJgfN3cfBKFBjqDR6"></div>
+                    <div class="form-actions" data-page-node-id="NnFZHqrPbCGL0fDV64IBSX">
+                        <button type="button" id="btn-approve-plan" class="btn-primary" data-page-node-id="BvL93KpIEpNzJXUWRHlkum">采 纳 并 通 过</button>
+                        <button type="button" id="btn-reject-plan" class="btn-secondary" data-page-node-id="zbUR6RWFo819mcns4jWxeN">驳 回 本 批</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 故事库 -->
+            <section id="tab-library" class="tab-content" data-page-node-id="jxp7fFwDqVF3WeYj4iUE7j">
+                <div id="library-list" class="content-card" data-page-node-id="GbFLUHWOWCtURu9DYBn019">
+                    <div class="section-label" data-page-node-id="BhmS1HONZveyNieNCEnmHZ">LIBRARY</div>
+                    <h2 class="section-title" data-page-node-id="Eue6HHXx9VgGEeNfVx0KzN">故事列表</h2>
+                    <div id="stories" class="stories-grid" data-page-node-id="FELQGHUwOmGnCVmlekPK1F"></div>
+                </div>
+
+                <div id="chapter-list" class="content-card hidden" data-page-node-id="sQKu8GtUhfMWJyueWmV5hS">
+                    <div class="list-header" data-page-node-id="eDBR2HDW1EAGmgVVqREsBR">
+                        <button id="btn-back-stories" class="btn-back" data-page-node-id="jLVE7hvmS8IgM55JnDAcZs">
+                            <span data-page-node-id="33nui7PRtaLnD5TjqpCtbg">←</span>
+                            <span data-page-node-id="9H9e2czj2aM0ewOLbbh5kJ">返回</span>
+                        </button>
+                        <h2 id="chapter-list-title" class="section-title" data-page-node-id="JGnJBS0omuXSelmuWsDpD8">章节目录</h2>
+                    </div>
+                    <div id="chapters" class="chapters-list" data-page-node-id="VyG5CsThi8riSGensnnUxD"></div>
+                </div>
+
+                <div id="workbench-overview" class="content-card hidden" data-page-node-id="jPRhqbR47qaS9Cc3CqwkQD">
+                    <div class="section-label" data-page-node-id="66cDQd6CKZOayp4RHCbrli">STORY OVERVIEW</div>
+                    <div class="list-header" data-page-node-id="EeDGSqUfphi3LY9iB4gHB5">
+                        <div data-page-node-id="ppR97f8ddqBwm5wiSR950R">
+                            <h2 id="workbench-title" class="section-title" data-page-node-id="IWi2AZ6SpaOtuMHU3gfSJD">故事概述</h2>
+                        </div>
+                        <button id="btn-refresh-workbench" class="btn-secondary" type="button" data-page-node-id="A0ajHoFzWD45pceRMFAadh">刷新概览</button>
+                    </div>
+                    <div class="workbench-split" data-page-node-id="AdGWcxpDJPqfDkXi3uHGoz">
+                        <div class="wb-col wb-setting" data-page-node-id="VSuKOjmunwEXAk4ntqojFo">
+                            <p id="story-overview-intro" class="story-overview-intro" data-page-node-id="1UT8c4PNDMLa8zGrww864M">暂无故事简介</p>
+                            <div id="story-plan" class="story-plan-panel" data-page-node-id="qScBJMDJjDPZBdzHDbGArY"></div>
+                            <div id="workbench-metrics" class="metric-grid" data-page-node-id="s40DM8nK2ufBeG3oYp51xD"></div>
+                            <div class="workbench-columns" data-page-node-id="k9TTt3Cz3CddjjuijhGYQO">
+                                <div data-page-node-id="dv0oatFtX3nE77INCe1zhh"><h3 data-page-node-id="HVbclKYOCD1LAF6PcnfGGo">角色账本</h3><div id="workbench-characters" class="compact-list" data-page-node-id="72ymtE22dhdROa52Vv4rju"></div></div>
+                                <div data-page-node-id="WhALdSfJcJt8x764l7j0AY"><h3 data-page-node-id="oO1C0GZ9KWUCosGfjcgxLV">物品 / 势力</h3><div id="workbench-items" class="compact-list" data-page-node-id="OV0OMykULDYGfOyZ5lh295"></div></div>
+                                <div data-page-node-id="p4P85bb9AXgyzFXjUCIFOU"><h3 data-page-node-id="mVJaSOnHML8wQ3RWFXCYTm">伏笔与质量债</h3><div id="workbench-risks" class="compact-list" data-page-node-id="RfOYolycaTRV1CXFrv14rj"></div></div>
+                            </div>
+                        </div>
+                        <div class="wb-col wb-checkpoint" data-page-node-id="xS5nFvEAOK8wa9ZInHagR7">
+                            <div class="section-label" data-page-node-id="j13DmxihqQmx0VmBte4ZCs">CHECKPOINTS</div>
+                            <h3 class="wb-col-title" data-page-node-id="mW5rKG7MxKos6RO02JQvcj">检查点与回滚</h3>
+                            <p class="settings-hint" data-page-node-id="bZPNg3WOhIUHAZViLTLYVs">
+                                手动快照用于在开新阶段前留锚；回滚将把章节、蓝图、账本恢复到该点，
+                                并裁剪之后的章节。最多保留 8 个，超限自动丢弃最旧。
+                            </p>
+                            <div class="cp-actions" data-page-node-id="aZaHMr0Vrl6Jqy4MfrUGYj">
+                                <button id="btn-new-checkpoint" class="btn-primary" type="button" data-page-node-id="vkWSNkLCqWJqBq5VaqJJ7o">打一个快照</button>
+                                <button id="btn-refresh-checkpoints" class="btn-secondary" type="button" data-page-node-id="KHUjrgdGr6J7vcvVES3Irh">刷新</button>
+                            </div>
+                            <div id="checkpoint-status" class="config-status hidden" data-page-node-id="FInWEgMwAw31zoa07VqcC9"></div>
+                            <div id="checkpoint-list" class="compact-list cp-list" data-page-node-id="jhoh85VVhuXinh4eo7Rk0D">
+                                <p class="empty-hint" data-page-node-id="PdGElSDZjZJmhFnVlyDbHq">加载中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="chapter-view" class="content-card hidden" data-page-node-id="LtIvcZmhySgfuasnQPbwyR">
+                    <div class="list-header" data-page-node-id="utj5ql8etcU5ZdedKKiFwW">
+                        <button id="btn-back-chapters" class="btn-back" data-page-node-id="PnaYX8aDNtqJzQMuf022sf">
+                            <span data-page-node-id="hKIFTrLR2dVFmEVY6moryG">←</span>
+                            <span data-page-node-id="Pwr4rpHFwF6js8KrfXQkLp">返回</span>
+                        </button>
+                        <h2 id="chapter-view-title" class="section-title" data-page-node-id="zZRBGGpQM0eqhZCf8Y3zW3"></h2>
+                    </div>
+                    <div class="chapter-actions" data-page-node-id="vuBcDgnxoOEhhF5qhBAMy3">
+                        <button id="btn-edit" class="btn-secondary" data-page-node-id="Qsxx0V9cwnlj4IifBGpsGy">编 辑</button>
+                        <button id="btn-save" class="btn-primary hidden" data-page-node-id="0JdELmpfsOJR8c8Pv4LZaU">保 存</button>
+                        <button id="btn-cancel-edit" class="btn-secondary hidden" data-page-node-id="RpGLVi4Rt6dTo6l9e4nUFA">取 消</button>
+                    </div>
+                    <div class="chapter-body" data-page-node-id="KHEWeBEA3GLGqIKi3SlcK8">
+                        <div id="chapter-content-readonly" class="chapter-text" data-page-node-id="9EQV0dFBsKx4XNkU5aZuZP"></div>
+                        <div id="chapter-content-edit" class="chapter-text hidden" contenteditable="true" spellcheck="false" data-page-node-id="xnKTyy7dM0GcvbGTx6B8WJ"></div>
+                        <div id="save-result" class="save-result hidden" data-page-node-id="gKT0dSnqk73yxaNU9uKRsW"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 设置 -->
+            <section id="tab-settings" class="tab-content" data-page-node-id="LajWFvBJ527FOJ2wY0TNHu">
+                <div class="content-card" data-page-node-id="5Av8rDPYjFthtcITvetBGG">
+                    <div class="section-label" data-page-node-id="JfIEFhnRZGoL2mJbUImJKU">SETTINGS</div>
+                    <h2 class="section-title" data-page-node-id="sfCcfegkh2hdiOBSBjTe39">模型接入设置</h2>
+                    <p class="settings-hint" data-page-node-id="rrPQmPdb0b7IvAC2nZDzCt">
+                        配置映射到后端运行时覆盖（data/llm-config-override.json），保存即生效、跨重启保留；
+                        留空字段保持当前值，全部留空时仍走本地 yml 静态配置。API Key 即 Bearer Token，不回显原文。
+                    </p>
+                    <form id="llm-config-form" data-page-node-id="ZY2cNi8MuRs5rq4b3UNhpA">
+                        <div class="form-grid" data-page-node-id="ywPMI8GYskyuZUM7pQV323">
+                            <div class="form-group full-width" data-page-node-id="ehUJpYpS5rRkcXOGWR04wL">
+                                <label for="llm_baseUrl" data-page-node-id="EUMPpI57BrjHvKp5FetCky">Base URL（接口地址）</label>
+                                <input type="text" id="llm_baseUrl" placeholder="https://dashscope.aliyuncs.com/compatible-mode" autocomplete="off" data-page-node-id="Y4pKmSBIqmyJIeEOcgzNtA">
+                            </div>
+                            <div class="form-group full-width" data-page-node-id="z6SAfw3qKuzZEfEVFasqww">
+                                <label for="llm_apiKey" data-page-node-id="wH42ezUEAHcZjGgm4JArCn">API Key / Token</label>
+                                <input type="password" id="llm_apiKey" placeholder="留空则保留现有 Key" autocomplete="new-password" data-page-node-id="nAqph92MKDzXRalpIhex2c">
+                            </div>
+                            <div class="form-group" data-page-node-id="F3AWguuOGKwqoUr58Qsssx">
+                                <label for="llm_model" data-page-node-id="qKRtb2BmcK3EUjGHyhoMYn">模型名（model）</label>
+                                <input type="text" id="llm_model" placeholder="qwen3.8-flash" autocomplete="off" data-page-node-id="JdKtPhR3f7rxHlf8ruKdF2">
+                            </div>
+                            <div class="form-group" data-page-node-id="FRmqQFFDO0PM9fxWaOyM02">
+                                <label for="llm_maxTokens" data-page-node-id="61SJLrkXJSlZMfE4ycGe8F">最大输出 Token</label>
+                                <input type="number" id="llm_maxTokens" min="1" placeholder="16384" autocomplete="off" data-page-node-id="0jgqJmQMw3lAVECABMBBB9">
+                            </div>
+                        </div>
+                        <div id="llm-config-status" class="config-status hidden" data-page-node-id="9Kj3vWuEFwpTjowTew5Ac3"></div>
+                        <div class="form-actions" data-page-node-id="Udw1ffZAg3TFqMlLmGMncg">
+                            <button type="submit" id="btn-save-llm-config" class="btn-primary" data-page-node-id="Oyv6v1wWCVYGqE0ouBGfDh">保 存 配 置</button>
+                            <button type="button" id="btn-reset-llm-config" class="btn-secondary" data-page-node-id="RDgNUqOIer0GGWUe19tVGk">清 除 覆 盖</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="content-card" data-page-node-id="QVqcnZIEYXg6Vxgd7yPWud">
+                    <div class="section-label" data-page-node-id="sSR1Tmu4uw419PZ0mJdSw5">SCENE MODELS</div>
+                    <h2 class="section-title" data-page-node-id="m1nbxq44CG3VtAfwuNTpcf">场景模型矩阵</h2>
+                    <p class="settings-hint" data-page-node-id="bZref5VnUGT8zfPHK2oAmJ">
+                        每个生成场景可独立指定模型 / 输出上限 / 采样温度。优先级：场景覆盖 &gt; 全局覆盖（上方表单）&gt; yml 静态配置
+                        （场景条目缺项回落统一 chat-model）。覆盖输入留空 = 清除该字段覆盖、回退下一层；
+                        yml 中标记「独立 API」的场景（第二模型族）地址与密钥不受覆盖影响。保存即生效、跨重启保留。
+                    </p>
+                    <div id="scene-unified-note" class="scene-unified-note hidden" data-page-node-id="R8r8J8KJS0zgnDVcNVYCyZ"></div>
+                    <div id="scene-matrix" class="scene-matrix" data-page-node-id="yaWg65yFuJRXZn1MBhvqYF">
+                        <p class="empty-hint" data-page-node-id="IW9WpfqJFdm848fjhRHDLj">加载中...</p>
+                    </div>
+                    <div id="scene-config-status" class="config-status hidden" data-page-node-id="bqoGkfgwgHVtfeTkQ00EvS"></div>
+                    <div class="form-actions" data-page-node-id="Xai7jBk4wpdQMR1DjCQxtC">
+                        <button type="button" id="btn-save-scene-config" class="btn-primary" data-page-node-id="oWQEa7oqB7EEGdTFLwSew0">保 存 场 景 覆 盖</button>
+                        <button type="button" id="btn-reset-scene-config" class="btn-secondary" data-page-node-id="ev62vZsbh625KunV4opFP3">清 除 场 景 覆 盖</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 章节导航：悬浮固定于正文阅读页视口右侧，边框之外 -->
+    <div id="chapter-navigation" class="chapter-navigation hidden" aria-label="章节导航" data-page-node-id="dR55o8ZeidfKliqYvrgavA">
+        <button id="btn-prev-chapter" class="btn-secondary nav-prev" type="button" data-page-node-id="vpKZaOx2zcsd2uFfBvtKkj">上一章</button>
+        <button id="btn-next-chapter" class="btn-primary nav-next" type="button" data-page-node-id="UyDDXLUeUbZDUpHeBRMoRO">下一章</button>
+    </div>
+
+    <div id="toast" class="toast hidden" data-page-node-id="JLwZtxLpWafkz4wtVD3Pre"></div>
+
+    <script>
+        // ===== 登录页粒子动画 =====
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function particleRgb() {
+            return (getComputedStyle(document.body).getPropertyValue('--particle-rgb') || '0, 240, 255').trim();
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 1;
+                this.speedX = Math.random() * 0.5 - 0.25;
+                this.speedY = Math.random() * 0.5 - 0.25;
+                this.alpha = Math.random() * 0.5 + 0.2;
+                this.color = 'rgba(' + particleRgb() + ', ' + this.alpha.toFixed(3) + ')';
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // 主题切换后重染粒子（供 app.js 调用）
+        window.recolorParticles = function () {
+            const rgb = particleRgb();
+            particles.forEach(function (p) {
+                p.color = 'rgba(' + rgb + ', ' + p.alpha.toFixed(3) + ')';
+            });
+        };
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < 120; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            initParticles();
+            animate();
+            window.addEventListener('resize', resizeCanvas);
+        });
+
+        // 未接入后端的入口：明确告知，不伪装成功
+        function showRegister() {
+            alert('注册功能未接入后端');
+        }
+
+        function showForgotPassword() {
+            alert('请联系管理员重置密码');
+        }
+
+        function socialLogin(provider) {
+            alert('第三方登录未接入后端');
+        }
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>

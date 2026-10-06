@@ -183,7 +183,7 @@ class PromptBudgetGuardTest {
      */
     @Test
     void reviewFeedbackAndStyleGuardsOutliveRecallUnderBudget() {
-        // 久远唤醒的优先级（ChapterMemoryService.MEMORY_PRIORITY_RECALL），2026-10-01 由 4 降为 5
+        // 久远唤醒的优先级（ChapterMemoryService.MEMORY_PRIORITY_RECALL），由 4 降为 5
         final int recallPriority = 5;
         int review = PrefixBlock.REVIEW_FEEDBACK.toBlock("x").priority();
         int fatigue = PrefixBlock.FATIGUE_BLACKLIST.toBlock("x").priority();

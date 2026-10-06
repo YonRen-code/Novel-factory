@@ -201,7 +201,7 @@ class ChapterWorkerTest {
 
     @Test
     void buildChapterPrompt_rendersFourLayersInOrder() {
-        // 2026-09-22 拆分重构的保护测试：正文 prompt 必须按
+        // 拆分重构的保护测试：正文 prompt 必须按
         // 事实层 → 任务层 → 约束层 → 表现层 的顺序渲染，且各层内容归属正确。
         // 重构只改变组织方式，不得改变内容与顺序。
         ChapterPlanItemEntity item = ChapterPlanItemEntity.builder()

@@ -67,7 +67,7 @@ class ChapterCandidateServiceTest {
         storyProperties = new StoryProperties();
         StoryProperties.CandidateProperties candidate = new StoryProperties.CandidateProperties();
         candidate.setEnabled(true);
-        // 2026-10-02：MINOR_RESIDUE 与 DEBT 的默认开关均已关闭（见 CandidateProperties 注释）。
+        // MINOR_RESIDUE 与 DEBT 的默认开关均已关闭（见 CandidateProperties 注释）。
         // 本类多数用例测的是"候选机制本身"（生成/盲评/回退），故显式打开 MINOR 通道，
         // 让 fixture 的 MINOR_RESIDUE 仍能走到候选；**默认值行为另有专门用例覆盖**（见文件末尾）。
         candidate.setTriggerOnMinorResidue(true);
@@ -129,8 +129,8 @@ class ChapterCandidateServiceTest {
 
     @Test
     void challengerBelowLengthFloor_keepsIncumbent() {
-        // 2026-10-04 字数下限：挑战者有效字 < 原稿 60% 直接机械出局，不进盲评——
-        // 新书 11-20 章实测：5 次采纳的挑战者全部比原稿短（ch15 砍半、ch19 -42%），盲评明令不评长短，
+        // 字数下限：挑战者有效字 < 原稿 60% 直接机械出局，不进盲评——
+        // 实测：5 次采纳的挑战者全部比原稿短（ch15 砍半、ch19 -42%），盲评明令不评长短，
         // 短稿结构性占优，必须在盲评前拦下。原稿约 1600 有效字，挑战者约 270 有效字。
         String longIncumbent = "原稿正文，情节推进，细节扎实，对白自然。".repeat(100);
         chapterContent.setContent(longIncumbent);
@@ -363,7 +363,7 @@ class ChapterCandidateServiceTest {
         assertTrue(debt.isLowConfidencePass(), "DEBT 不设条数门槛");
     }
 
-    // ==================== 默认配置行为（2026-10-02） ====================
+    // ==================== 默认配置行为 ====================
 
     /**
      * 默认配置下**只有 REVISED_PASS 触发候选**。

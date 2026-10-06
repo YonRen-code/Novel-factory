@@ -189,7 +189,7 @@ class QualityGateTest {
 
     @Test
     void debt_isLowConfidencePass_soCandidateIsTriggered() {
-        // 2026-10-01：DEBT 此前被 isLowConfidencePass 排除，导致"修订两轮仍不收敛"的章
+        // DEBT 此前被 isLowConfidencePass 排除，导致"修订两轮仍不收敛"的章
         // 恰恰是候选选优**唯一没轮到**的一类——而它最需要换一个写法。
         // 这里钉住语义：DEBT 虽不是"通过"，但必须被认作"低置信"，否则候选永远不介入。
         GateResult debt = GateResult.of(blockingResult().getIssues(), 0, 2);
@@ -235,7 +235,7 @@ class QualityGateTest {
 
     @Test
     void verifyDegraded_isFlaggedSeparatelyFromUnfixed_andStaysConservative() {
-        // 2026-09-30：验证"没跑成"必须与"确认未修复"分开——原先两者都走"未修复"，
+        // 验证"没跑成"必须与"确认未修复"分开——原先两者都走"未修复"，
         // 于是一次网关抖动会被记成质量债，再回灌给写手当作"你上一章犯的错"。
         // 本用例锁定两件事：①标记透出；②内容侧偏向不变（仍算未通过、不放行未验证的稿）
         when(chapterAuditService.audit(any(), any(), any(), any(), any(), any(), anyInt(), any()))
@@ -418,7 +418,7 @@ class QualityGateTest {
 
     @Test
     void styleMinorAlone_doesNotRevise_butIsReportedAsMinor() {
-        // 严重度分层（2026-09-16）：纯程度性文风问题（身体套话复读）已降为 MINOR——
+        // 严重度分层：纯程度性文风问题（身体套话复读）已降为 MINOR——
         // 既不触发修订，也不计入 grade（不触发候选选优），但必须随结果返回供上层记债
         audit.setEnabled(false);
         chapterContent.setContent("他喉结滚动，没接话。她转身要走，他又喉结滚动了一下。");

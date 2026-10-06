@@ -95,7 +95,7 @@ class ExitConditionPolicyTest {
         assertEquals("", ExitConditionPolicy.renderAtoms(List.of()));
     }
 
-    // ---- 多点取证形态识别（2026-09-18）----
+    // ---- 多点取证形态识别----
     // 核验侧只接受「单个 chapterNo + 该章内一段连续原文」，而这类条件的证据天然分散在多章/多场景，
     // 因此结构性无法通过。识别结果**只在已判未达成时用于归因**，不在判定路径上。
 

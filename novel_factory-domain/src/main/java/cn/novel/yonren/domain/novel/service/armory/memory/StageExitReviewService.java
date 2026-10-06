@@ -252,7 +252,7 @@ public class StageExitReviewService {
                     // 截断到 prompt 约束的字数上限，保住"前缀仍是原文子串"的有效性
                     evidence = EvidenceMatch.truncate(StringUtils.trimToEmpty(evidence),
                             REVIEW_EVIDENCE_MAX_LENGTH);
-                    // 统一走 EvidenceMatch（2026-09-18 收编，此前是裸 indexOf）：
+                    // 统一走 EvidenceMatch 收编，此前是裸 indexOf）：
                     // 归一化后整串包含，或按省略号分段后**各段全命中**。
                     // 治的是"模型引文与原文只差标点/空白/引号形态"，以及"同章内相距较远的两段被拼成一条"；
                     // 且**不放宽"证据必须能定位"**——跨章拼接的引文仍会被逐段校验挡住。

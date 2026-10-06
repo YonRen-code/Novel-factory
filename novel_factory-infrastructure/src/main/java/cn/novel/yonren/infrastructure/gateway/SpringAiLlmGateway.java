@@ -134,7 +134,7 @@ public class SpringAiLlmGateway implements LlmGateway {
                 // 其余一律允许换——同族/跨族重跑一份相同请求，是"模型不存在 / 参数被拒 / 额度耗尽 /
                 // 供应商内部故障（500 · engine abort）"这几类**唯一有效的处置**，而它们恰好都是
                 // 「同一模型原样重试必然再失败」的场景。
-                // 2026-09-30 修正：此前调 LlmErrorClassifier.shouldFallbackToAnotherModel，
+                // 修正：此前调 LlmErrorClassifier.shouldFallbackToAnotherModel，
                 // 它按 isModelLevel() 判定，而瞬时故障（TRANSIENT）与无法归类（UNKNOWN）都是
                 // modelLevel=false → 不换模型 → 由传输层原样重试同一模型。对**瞬时抖动**这是对的
                 // （换模型是白花钱），但传输层只重试 2 次、间隔极短，而思考模型被上游掐断这类故障
@@ -237,7 +237,7 @@ public class SpringAiLlmGateway implements LlmGateway {
         }
         // 关闭思考模式：enable_thinking 是 DashScope 专属语义（非 OpenAI 标准参数），
         // 仅对 DashScope 端点注入——发给智谱/Moonshot 等其他供应商会被 400 拒绝
-        //（2026-09-30 实测：glm-5.3 场景继承基座 enable-thinking=false，注入后被拒整链降级）。
+        // 实测：glm-5.3 场景继承基座 enable-thinking=false，注入后被拒整链降级）。
         // 场景条目若覆盖了非 DashScope 的 base-url，即使继承 false 也不再注入
         boolean dashscopeEndpoint = StringUtils.contains(
                 StringUtils.defaultString(selected.getBaseUrl(), api.getBaseUrl()), "dashscope");
@@ -323,7 +323,7 @@ public class SpringAiLlmGateway implements LlmGateway {
                 log.warn("注入 enable_thinking=false 失败，按原请求发送：{}", e.getMessage());
             }
             ClientHttpResponse response = execution.execute(request, payload);
-            // 自愈（2026-09-30）：强制思考模型对 enable_thinking=false 返回 4xx——去掉该参数
+            // 自愈：强制思考模型对 enable_thinking=false 返回 4xx——去掉该参数
             // 原样重试一次，并记住本实例后续跳过注入。重试走的是余下执行链，不会重新进入本拦截器成环
             if (response.getStatusCode().is4xxClientError()) {
                 injectionRejected.set(true);

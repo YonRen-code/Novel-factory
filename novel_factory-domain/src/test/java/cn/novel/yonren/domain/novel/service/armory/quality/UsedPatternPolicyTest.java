@@ -140,7 +140,7 @@ class UsedPatternPolicyTest {
     @Test
     @DisplayName("能力展示频次：窗口内 ≥2 章标注展示即告警，并点名已用形态")
     void repeatedAbilityShowcaseIsCalledOut() {
-        // 新书 6-10 章实测：5 章全部是「微动作展示 → 旁人评价不像孩子」，读者第 3 次即可预判
+        // 实测：5 章全部是「微动作展示 → 旁人评价不像孩子」，读者第 3 次即可预判
         List<ChapterSummaryEntity> summaries = List.of(
                 showcase(6, "手指蘸水画圈引人注意"),
                 showcase(7, "旁人评价不像四岁"),

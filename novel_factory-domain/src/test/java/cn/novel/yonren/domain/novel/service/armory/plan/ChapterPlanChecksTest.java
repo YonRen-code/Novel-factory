@@ -154,7 +154,7 @@ class ChapterPlanChecksTest {
     void validateSuspenseAdvance_treatsTransitionChapterAsNonBlocking() {
         List<String> ladder = List.of("双方不知", "一方起疑", "双方持证", "摊牌");
         // 停留段以过渡章收尾 → 不算违规（过渡章本就是蓄势）。
-        // ⚠️ 三章须各自写出"本章独有"的推进子项：2026-10-01 起相邻章 suspenseBeat
+        // ⚠️ 三章须各自写出"本章独有"的推进子项：起相邻章 suspenseBeat
         // **逐字相同**会命中独立去重规则（与停留规则无关），这里刻意让文本相异以隔离被测规则。
         List<ChapterPlanItemEntity> chapters = List.of(
                 planWithBeat(1, ladder.get(0) + "——陆建国首次听到投资提议", null),
@@ -246,7 +246,7 @@ class ChapterPlanChecksTest {
                 .build();
     }
 
-    // ==================== 章级主线推进校验（2026-10-02） ====================
+    // ==================== 章级主线推进校验 ====================
 
     /** 造一章：同时给出 suspenseBeat 与 mainLineAdvance */
     private ChapterPlanItemEntity planWithAdvance(int chapterNo, String beat, String advance) {
@@ -352,7 +352,7 @@ class ChapterPlanChecksTest {
 
     @Test
     void validateTimeAdvance_flagsMissingChapters() {
-        // 时序锚 v2（2026-10-06）：timeAdvance 是年龄/时间推进的唯一合法通道——
+        // 时序锚 v2：timeAdvance 是年龄/时间推进的唯一合法通道——
         // 61-65 批实测全缺时，阶段蓝图声明的 stageEnd 跳接（2003→2009）落空，进度对齐滞后 7 段
         List<ChapterPlanItemEntity> chapters = List.of(
                 planItem(61, "推进3天，至2003年10月20日"),

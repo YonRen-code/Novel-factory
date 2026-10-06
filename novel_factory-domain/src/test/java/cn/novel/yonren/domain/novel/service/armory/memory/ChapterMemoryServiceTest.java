@@ -318,7 +318,7 @@ class ChapterMemoryServiceTest {
 
         String prefix = service.buildMemoryPrefix(summaries, null, null);
 
-        // 新埋区（上一章埋设）统一（上章新埋）前缀，上限 3 条带原文；溢出条目仍可见（2026-10-04 去章号后前缀合并）
+        // 新埋区（上一章埋设）统一（上章新埋）前缀，上限 3 条带原文；溢出条目仍可见 去章号后前缀合并）
         assertTrue(prefix.contains("（上章新埋）伏笔1"));
         assertTrue(prefix.contains("（上章新埋）伏笔3"));
         assertTrue(prefix.contains("（上章新埋）伏笔4"), "溢出条目仍应可见");
@@ -532,7 +532,7 @@ class ChapterMemoryServiceTest {
 
     @Test
     void prefix_rendersVolumeDirectionBeforeStageBlueprint() {
-        // 卷方向锚（2026-09-28）：卷主旨/承转合/卷级伏笔/卷内弧清单此前只在弧生成时可见，
+        // 卷方向锚：卷主旨/承转合/卷级伏笔/卷内弧清单此前只在弧生成时可见，
         // 章节计划与正文两层看不到——正文可能偏离卷主旨、把卷级承诺一路漏到卷末清账
         List<ChapterSummaryEntity> summaries = List.of(summary(1, states(state("林尘", "炼气一层"))));
         VolumeBlueprintEntity volume = VolumeBlueprintEntity.builder()
@@ -572,7 +572,7 @@ class ChapterMemoryServiceTest {
 
     @Test
     void memoryBlocks_splitSectionsWithValueBasedPriorities() {
-        // 分块视图（2026-09-28）：整块交给总额守门只能整体截尾（先牺牲尾部：上章结尾/质量债/偏差警示），
+        // 分块视图：整块交给总额守门只能整体截尾（先牺牲尾部：上章结尾/质量债/偏差警示），
         // 拆分后牺牲顺序改由 priority 决定——最近与纠错类数值更小（更不可牺牲），账本/唤醒更低
         List<ChapterSummaryEntity> summaries = List.of(
                 summary(1, states(state("林尘", "炼气一层"))),
@@ -605,7 +605,7 @@ class ChapterMemoryServiceTest {
 
     @Test
     void timeAnchor_isInjectedAtRealmLockPriorityWhenAgeFactPresent() {
-        // 2026-10-03：年龄必须像境界一样每路锁定——时序锚与境界锁定同级（priority 1）、不可截断。
+        // 年龄必须像境界一样每路锁定——时序锚与境界锁定同级（priority 1）、不可截断。
         // 背景：26-30 章计划 prompt 里"当前月龄出现 0 次"，导致十一个月大的婴儿写数论证明。
         ChapterSummaryEntity ch16 = summary(16, states(state("陆瑾瑜", "十一个月")));
         ch16.setTimePoint("正月十六上午");
@@ -637,7 +637,7 @@ class ChapterMemoryServiceTest {
 
     @Test
     void memoryBlocks_keepDirectionBlocksWhenNoSummaries() {
-        // 2026-10-03：新书首段（无摘要）不得整块清空——卷方向锚/阶段蓝图不依赖摘要，
+        // 新书首段（无摘要）不得整块清空——卷方向锚/阶段蓝图不依赖摘要，
         // 是首段计划与第一章唯一的方向来源（实测事故：首段计划输入仅剩[故事设定]，
         // 计划层据此编出超龄事件，阶段出口条件达成率仅 2/5）
         StageBlueprintEntity blueprint = StageBlueprintEntity.builder()
@@ -920,7 +920,7 @@ class ChapterMemoryServiceTest {
 
     @Test
     void prefix_singleMentionEntryRendersNameOnly() {
-        // 只出现一次的条目降为"仅列名"（2026-09-29）：实测本书物品账本近一半渲染字数是这类
+        // 只出现一次的条目降为"仅列名"：实测本书物品账本近一半渲染字数是这类
         // 一次性布景道具（油纸包桃酥 / 绿豆汤 / 洛阳轴承厂纸盒…），不会再被引用却持续吃前缀预算。
         // 判定依据：buildLedger 里 lastChapterNo 每次提及都会刷新，故"首现章 == 最近提及章"
         // 等价于"全篇只在一章出现过"——这是本规则能成立的前提，须由本用例守住。

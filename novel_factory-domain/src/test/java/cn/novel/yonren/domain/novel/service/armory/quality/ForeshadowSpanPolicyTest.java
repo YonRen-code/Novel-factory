@@ -153,7 +153,7 @@ class ForeshadowSpanPolicyTest {
         assertEquals(0.0, ForeshadowSpanPolicy.averageSpan(null), 1e-9);
     }
 
-    // ==================== resolvable 过滤（2026-10-02） ====================
+    // ==================== resolvable 过滤 ====================
 
     /**
      * `resolvable=false` 的条目（人物状态/氛围点缀）不计入寿命统计。
@@ -251,7 +251,7 @@ class ForeshadowSpanPolicyTest {
         assertEquals(2, pending.get(0).plantChapterNo());
     }
 
-    // ==================== 反馈口径：欠采样时退回宽松（2026-10-02 回归） ====================
+    // ==================== 反馈口径：欠采样时退回宽松 回归） ====================
 
     /**
      * **回归**：老故事的历史埋设全部未标注（`resolvable=null`），严格口径样本为 0，

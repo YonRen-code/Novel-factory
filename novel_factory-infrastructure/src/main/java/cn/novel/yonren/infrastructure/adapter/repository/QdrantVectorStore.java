@@ -70,9 +70,9 @@ public class QdrantVectorStore implements VectorStore {
         try {
             // 先查存在性：每章检查点都会幂等重入，盲调 create 会让客户端对 ALREADY_EXISTS 打 ERROR 堆栈
             if (qdrant.collectionExistsAsync(collection).get(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                // 维度守卫（2026-09-16）：集合已存在时校验其维度与本次向量长度一致。
+                // 维度守卫：集合已存在时校验其维度与本次向量长度一致。
                 // 原实现把冲突留给 upsert 暴露——但故事记忆的写入是 fail-soft（索引静默停更），
-                // 检索失败也只降级留痕（RECALL_DEGRADED，2026-09-29 起），维度冲突若不在此处拦截
+                // 检索失败也只降级留痕（RECALL_DEGRADED，起），维度冲突若不在此处拦截
                 // 会表现为"检索一直空召回"式的隐性劣化。换 embedding 模型后这里立刻给出
                 // 可行动的错误：**不同模型的向量空间互不可比，即使维度巧合相同也必须重嵌**
                 int existing = vectorSizeOf(qdrant, collection);

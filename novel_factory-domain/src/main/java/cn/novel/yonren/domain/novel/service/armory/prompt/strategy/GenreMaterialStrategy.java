@@ -36,7 +36,7 @@ public class GenreMaterialStrategy implements PromptRuleStrategy {
     @Override
     public boolean supports(PromptScene scene, PromptContext ctx) {
         // 题材资料服务的是"写作与评判"：大纲定方向、正文/修订写出来、审校按题材规范评价。
-        // 但**结构化输出场景（阶段蓝图/卷蓝图）不注入**（2026-09-16 收窄）——那里要的是 JSON
+        // 但**结构化输出场景（阶段蓝图/卷蓝图）不注入** 收窄）——那里要的是 JSON
         // 结构，题材风格补充与正文范例（exemplars）对蓝图没有适用面，只稀释业务约束、干扰结构化输出。
         // 具体条目的场景限制（如 arc-templates 仅大纲）在 load 内按条目取舍
         if (scene == PromptScene.STAGE_BLUEPRINT || scene == PromptScene.VOLUME_BLUEPRINT) {

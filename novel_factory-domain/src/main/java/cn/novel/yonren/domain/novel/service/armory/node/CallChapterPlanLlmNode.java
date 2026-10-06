@@ -49,7 +49,7 @@ public class CallChapterPlanLlmNode extends AbstractArmorySupport {
     public StoryGenerateResultAggregate doApply(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
         log.info("装配 CallChapterPlanLlmNode - 调用章节计划模型");
 
-        // 规划期协作取消/熔断检查（2026-09-30 补）：内容循环只在章界检查，而规划一旦开始
+        // 规划期协作取消/熔断检查 补）：内容循环只在章界检查，而规划一旦开始
         // 可能连续 10-20 分钟（强制思考模型）——若入口不检查，"取消"在整个规划期都不生效，
         // 用户按停止后优雅关闭还会等待挂起的 HTTP 调用，表现为"彻底卡死"
         GenerationJob planJob = dynamicContext == null ? null : dynamicContext.getJob();

@@ -357,7 +357,7 @@ public class ChapterSummaryService {
             if (StringUtils.isNotBlank(excerpt)) {
                 excerpt = EvidenceMatch.truncate(excerpt, SEED_EXCERPT_MAX_LENGTH);
                 // 引用非当章正文（编造/漂移）则置空，content 保留用于账本匹配。
-                // 2026-09-18 收编：此前是裸 content.indexOf——模型换了引号形态
+                // 收编：此前是裸 content.indexOf——模型换了引号形态
                 // （本故事 ch3/ch4 正文通篇半角引号）就会把真实引用误清空；
                 // 现走 EvidenceMatch，只放宽标点/空白差异，编造引用仍拒收。
                 seed.setExcerpt(StringUtils.isNotBlank(excerpt)
@@ -483,7 +483,7 @@ public class ChapterSummaryService {
             }
             if (StringUtils.isBlank(entry.getEvidence())) {
                 missing++;
-                // 未附证据**不再直接入账**（2026-09-16 修正）：原实现沿用旧规则直接 kept，
+                // 未附证据**不再直接入账** 修正）：原实现沿用旧规则直接 kept，
                 // 等于留了一条后门——模型只要不写引文，角色/物品/势力状态就全部绕过反编造门，
                 // 且裁决层永远看不到它们。现转入挂起层待 L1 裁决：
                 //  · sourceAccount 必须记——挂起层是三账本混合的扁平列表，不记来源，

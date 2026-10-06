@@ -73,7 +73,7 @@ public class QualityGate {
                                               StyleStatEntity styleStat,
                                               int globalNo,
                                               Path storyDir) {
-        // 段落结构兜底（2026-10-01）：写手偶尔把整章当成单个字符串吐出（实测 4/10 章换行数为 0，
+        // 段落结构兜底：写手偶尔把整章当成单个字符串吐出（实测 4/10 章换行数为 0，
         // 单章 3000~4600 字挤成一段）。必须在任何按行统计之前重排，否则对白行占比会被误算为 1.0
         // （ratioOf = 含引号行/非空行，整章仅 1 行且含引号 ⇒ 恒 1.0），段落密度审校也无从下手。
         // 重排是纯机械动作、不改一个字；异常信号另行记 MINOR 回灌规划层。
@@ -97,7 +97,7 @@ public class QualityGate {
             log.warn("第 {} 章未达到 1500 字参考线，实际有效字数 {}（不阻塞，密度信号将回灌规划层）", globalNo,
                     ChapterLengthPolicy.effectiveCharacterCount(chapterContent.getContent()));
         }
-        // 上沿同口径告警（2026-09-29）：字数超标不是"写得多"，而是**关键事件数没变、水变多了**——
+        // 上沿同口径告警：字数超标不是"写得多"，而是**关键事件数没变、水变多了**——
         // 实测第 20 章 4170 字 / 5 个关键事件，对照第 19 章 2205 字 / 5 个关键事件。
         // 与下沿一样只告警不阻塞，信号回灌规划层（见 ChapterPlanPromptService 的注水反馈）。
         // 刻意**不豁免过渡章**：下沿豁免过渡章是因为它本就该短；写得比常规章还长的过渡章
@@ -146,7 +146,7 @@ public class QualityGate {
                     globalNo, chapterRefEvidence);
         }
 
-        // 金手指机制门禁（机械兜底，2026-09-16 由"只记债不阻塞"改为真 BLOCKING 进修订闭环）：
+        // 金手指机制门禁（机械兜底，由"只记债不阻塞"改为真 BLOCKING 进修订闭环）：
         // 超期未使用 / 机制原理重复描述。两条都是 (摘要历史 + 本章正文) 的纯函数 ⇒ 修订稿可重算，
         // 修订真的清掉问题即闭环，不会永远挂债。
         // 必须在摘要落盘之前调用：本章是否"已使用"靠回读正文判定（mentionsMechanism），否则会误判
@@ -170,7 +170,7 @@ public class QualityGate {
         mechanicalIssues.addAll(secrecyIssues);
         mechanicalIssues.addAll(mechanismIssues);
         mechanicalIssues.addAll(titleIssues);
-        // 段落结构坍缩（机械，2026-10-01）：正文被写成一个巨型文本块。注意必须用**重排前**的原文
+        // 段落结构坍缩（机械，）：正文被写成一个巨型文本块。注意必须用**重排前**的原文
         // 做判定，重排后段落数已被补齐，再判就永远不命中。MINOR 落债回灌，不进修订
         // （根因在写手侧，为分段重写整章不成比例；兜底重排已在方法入口完成）
         if (!structureIssues.isEmpty()) {
@@ -179,7 +179,7 @@ public class QualityGate {
         }
         mechanicalIssues.addAll(structureIssues);
         // 对白格式坍缩检测（机械，P1）：整章零对白引号=读者无法区分叙述与发言（典型成因：
-        // 写手把"纯文本禁令"过度泛化到对白，2026-09-29 阅读实测整批丢引号）。MINOR 落债回灌，
+        // 写手把"纯文本禁令"过度泛化到对白，阅读实测整批丢引号）。MINOR 落债回灌，
         // 不进修订——根因已在生成 prompt 侧修复（对白引号豁免），此处是兜底观测与回灌
         List<ChapterIssueEntity> dialogueIssues = chapterContent == null ? List.of()
                 : DialogueRatioPolicy.checkFormatCollapse(chapterContent.getContent(),
@@ -189,7 +189,7 @@ public class QualityGate {
                     dialogueIssues.stream().map(ChapterIssueEntity::getDescription).toList());
         }
         mechanicalIssues.addAll(dialogueIssues);
-        // 括号包对话检测（机械，P1，2026-10-01）：台词写成（……）而非「……」。
+        // 括号包对话检测（机械，P1，）：台词写成（……）而非「……」。
         // 它躲得过上面的坍缩检测（文里仍有其它引号），却会让对白占比与轮次密度双双虚高——
         // 被括号包裹的句子两个统计都不计入，等于把对话坍缩伪装成达标。MINOR 落债回灌
         List<ChapterIssueEntity> bracketIssues = chapterContent == null ? List.of()
@@ -200,7 +200,7 @@ public class QualityGate {
                     bracketIssues.stream().map(ChapterIssueEntity::getEvidence).toList());
         }
         mechanicalIssues.addAll(bracketIssues);
-        // 严重度分层（2026-09-16）：机械问题按档分流——BLOCKING 进修订闭环，
+        // 严重度分层：机械问题按档分流——BLOCKING 进修订闭环，
         // MINOR（文风程度问题）只记录、不触发修订也不触发候选，见 GateResult 类注释
         List<ChapterIssueEntity> mechanicalMinor = nonBlockingOf(mechanicalIssues);
         List<ChapterIssueEntity> mechanicalBlocking = blockingOf(mechanicalIssues);
@@ -218,7 +218,7 @@ public class QualityGate {
         // 审校比对清单：剔除已熔断冻结的未填伏笔——未填不再构成审校的回收义务，且封顶防百章后线性膨胀
         String foreshadowing = String.join("\n", chapterMemoryService.buildAuditForeshadowList(summaries));
         // 审校输入 guard：禁泄清单（LLM 判变相泄露）+ 计划覆盖预警 + 内容密度预警 + 章节编号元信息预警（加审）
-        // + 时序锚（2026-10-03）：把主角年龄摆进审校视野——否则"婴儿写数论证明"这类
+        // + 时序锚：把主角年龄摆进审校视野——否则"婴儿写数论证明"这类
         // 能力越界在审校侧完全不可见（此前 26 章 10 条 issue 全是位置/持有物类琐碎项）
         String registerContract = renderRegisterContract(requestParameter);
         // 时序锚：摘要锚优先；新书首段（无摘要）回退设定兜底锚——否则审校年龄判据因 guard 无锚而不触发
@@ -241,7 +241,7 @@ public class QualityGate {
         int minorCount = 0;
         List<ChapterIssueEntity> semanticMinors = List.of();
         int reviseRounds = 0;
-        // 修订验证是否"根本没跑成"（2026-09-30）：为真时 currentBlocking 的语义是
+        // 修订验证是否"根本没跑成"：为真时 currentBlocking 的语义是
         // 【未验证】而非【确认未修复】——内容侧偏向不变（仍算未通过、不放行未验证的稿），
         // 但上层不得把它记入质量债，观测侧单独计数（见 FixVerification / BatchHealthService）
         boolean auditVerifyDegraded = false;

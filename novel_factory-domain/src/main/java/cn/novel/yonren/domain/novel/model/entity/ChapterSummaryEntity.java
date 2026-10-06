@@ -80,7 +80,7 @@ public class ChapterSummaryEntity {
     // 本章是否出现"机制名 + 原理解释"的大段描述（机械统计，非模型输出）：供金手指机制
     // 跨章重复描述检查跨批累计——批内 contents 每批从空开始，只有落进摘要才能守住"全篇至多 2 次"；老数据为 null
     private Boolean mechanismDescribed;
-    // 本章是否包含"主角能力/早慧展示"场景（摘要模型判定，2026-10-04）：供 UsedPatternPolicy
+    // 本章是否包含"主角能力/早慧展示"场景（摘要模型判定，）：供 UsedPatternPolicy
     // 检测「主角微动作展示 → 旁人注意/评价」的跨章套路——抽象结构重复抓不了文本相似度，
     // 只能靠结构化标注；老数据为 null（视为无标注，不参与统计）
     private Boolean abilityShowcased;

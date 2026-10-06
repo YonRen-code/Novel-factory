@@ -43,7 +43,7 @@ class StyleStatServiceTest {
 
     @Test
     void merge_detectsNearDuplicateSentenceNotJustExactMatch() {
-        // 实测病症（2026-09-29）：第 9/10 章结尾仅差一个"他"字——
+        // 实测病症：第 9/10 章结尾仅差一个"他"字——
         // 「枕头底下，那根烟硌着后脑勺，像一根小小的骨头」vs「…硌着他的后脑勺…」。
         // 精确匹配下跨章重复统计为 0 条，等于完全失明；本用例守住近重复判据。
         service.merge(stat, "枕头底下，那根烟硌着后脑勺，像一根小小的骨头。");
@@ -86,7 +86,7 @@ class StyleStatServiceTest {
         String warning = service.renderWarning(stat);
 
         assertTrue(warning.contains("风格警示"));
-        // 措辞随近重复判据一并调整（2026-09-29）：不再只针对"逐字"，包含"高度相似"的句子
+        // 措辞随近重复判据一并调整：不再只针对"逐字"，包含"高度相似"的句子
         assertTrue(warning.contains("高度相似"), "警示应覆盖近重复而不只是逐字重复：" + warning);
         assertTrue(warning.contains(sentence));
         assertTrue(warning.contains("疲劳词超频"));
@@ -156,7 +156,7 @@ class StyleStatServiceTest {
 
     @Test
     void merge_capsUsedSentencesToRollingWindow() {
-        // 用**互不相似**的句子验证滚动窗口本身：近重复判据（2026-09-29）会把"只差一两个字的"
+        // 用**互不相似**的句子验证滚动窗口本身：近重复判据会把"只差一两个字的"
         // 模板式句子判为重复、不再进"已见句集"，所以不能用同模板批量生成的句子做本用例的 fixture。
         // 下面三组短句两两不同，任意两句至多共享一组（约占 1/3 篇幅），远低于近重复阈值。
         String first = sentence(0);

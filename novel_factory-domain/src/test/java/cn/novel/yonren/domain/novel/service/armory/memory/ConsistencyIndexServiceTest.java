@@ -81,7 +81,7 @@ class ConsistencyIndexServiceTest {
 
     @Test
     void mechanismIntervalOne_disablesCheckInsteadOfFlaggingEveryChapter() {
-        // 2026-10-01：interval=1 时 gap % 1 恒为 0 ⇒ 未使用的章之后**章章命中**，
+        // interval=1 时 gap % 1 恒为 0 ⇒ 未使用的章之后**章章命中**，
         // 写手陷入"必须用金手指"与"金手指没额度"互相矛盾的要求，两轮修订必然耗尽。
         // 实测 5 章 5 条 BLOCKING 全部出自这里。间隔 1 表达的是"规划层要求每章都用"，
         // 不该由机械门禁逐字兜底——故直接停用该检查，交给规划层与审校。
@@ -98,7 +98,7 @@ class ConsistencyIndexServiceTest {
         assertTrue(service.mechanismUsageIssues(null, story, 5).isEmpty());
     }
 
-    // ---------- 机制门禁：改为真 BLOCKING 前的两处判据修正（2026-09-16） ----------
+    // ---------- 机制门禁：改为真 BLOCKING 前的两处判据修正 ----------
 
     @Test
     void mechanismUsageIssueWaivedWhenChapterItselfMentionsIt() {
@@ -206,7 +206,7 @@ class ConsistencyIndexServiceTest {
 
     @Test
     void renderTimeAnchor_rendersLatestStoryTimeAndAgeWithSource() {
-        // 2026-10-03：时序锚是把"阶段锚"像境界一样锁定进每一路 prompt 的止血点
+        // 时序锚是把"阶段锚"像境界一样锁定进每一路 prompt 的止血点
         //（首发事故为"十一个月婴儿写数论证明"，重跑又绕道为"涂鸦=答案/观察者附会"）
         ChapterSummaryEntity ch16 = ChapterSummaryEntity.builder().chapterNo(16).timePoint("正月十六上午")
                 .consistencyFacts(List.of(new ChapterSummaryEntity.ConsistencyFact(
@@ -239,7 +239,7 @@ class ConsistencyIndexServiceTest {
 
     @Test
     void renderSettingsAgeAnchor_extractsChildAgeBoundToStageWord() {
-        // 2026-10-03：新书首段无摘要 → 摘要锚为空，需用设定兜底锚顶上（否则第一章/首段计划零年龄约束）
+        // 新书首段无摘要 → 摘要锚为空，需用设定兜底锚顶上（否则第一章/首段计划零年龄约束）
         String anchor = ConsistencyIndexService.renderSettingsAgeAnchor(
                 "2002年的平行现实世界。主角陆瑾瑜在2002年以4岁幼童的身份苏醒。",
                 "陆瑾瑜，灵魂是前世科技公司创始人",
@@ -313,7 +313,7 @@ class ConsistencyIndexServiceTest {
 
     @Test
     void rebuildProjectsRelationFactsWithUpsertSemantics() {
-        // #8 第一步（2026-09-16）：RELATION 事实进入关系台账——同 pair 覆盖旧值（台账回答"现在什么关系"），
+        // #8 第一步：RELATION 事实进入关系台账——同 pair 覆盖旧值（台账回答"现在什么关系"），
         // 首见章号保留在 firstChapter，lastChapter 随更新推进
         ChapterSummaryEntity first = ChapterSummaryEntity.builder().chapterNo(10)
                 .consistencyFacts(List.of(new ChapterSummaryEntity.ConsistencyFact(

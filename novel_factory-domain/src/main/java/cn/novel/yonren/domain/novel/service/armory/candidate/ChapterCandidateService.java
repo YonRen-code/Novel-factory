@@ -123,7 +123,7 @@ public class ChapterCandidateService {
                 return incumbentGate;
             }
             // 机械排序：零违规者优先、有效字数次之；带违规的挑战者直接出局（原稿已过机械门禁 = 零违规）。
-            // 字数下限（2026-10-04，新书 11-20 章实测）：5 次采纳的挑战者全部比原稿短（ch15 砍半、ch19 -42%）——
+            // 字数下限实测）：5 次采纳的挑战者全部比原稿短（ch15 砍半、ch19 -42%）——
             // 盲评明令不评长短 ⇒ 短稿结构性占优，必须在进盲评前拦下（详见 analysis/fix-plan-candidate-length-floor.md）。
             ChapterContentEntity best = mechanicalBest(challengers,
                     ChapterLengthPolicy.effectiveCharacterCount(chapterContent.getContent()));

@@ -55,8 +55,8 @@ public class BatchHealthService {
     private static final double LEDGER_DEGRADED = 0.80;
     /** 分档计权时"放宽档"的权重：证据宽松得来，可信度低于逐字命中的严格档 */
     private static final double LOOSE_WEIGHT = 0.5;
-    // ---------- 生成模式（2026-09-22）：兜底路径被吃掉的频率 ----------
-    // ⚠️ 无历史基线（截至 2026-09-22 两批 12 章全部走 FREE），阈值暂定，先当"观察项"用
+    // ---------- 生成模式：兜底路径被吃掉的频率 ----------
+    // ⚠️ 无历史基线（截至 两批 12 章全部走 FREE），阈值暂定，先当"观察项"用
     private static final double FALLBACK_MODE_OK = 0.20;
     private static final double FALLBACK_MODE_DEGRADED = 0.50;
 
@@ -77,10 +77,10 @@ public class BatchHealthService {
      */
     private static final double OVERSIZED_OK = 0.10;
     private static final double OVERSIZED_DEGRADED = 0.25;
-    // ---------- 正文复核改判占比（2026-09-22）：摘要粒度缺口的度量 ----------
+    // ---------- 正文复核改判占比：摘要粒度缺口的度量 ----------
     private static final double RECHECK_OK = 0.20;
     private static final double RECHECK_DEGRADED = 0.50;
-    // ---------- 主线最长停留（2026-09-22）：与 SuspenseLadderPolicy 的闸门判据同源 ----------
+    // ---------- 主线最长停留：与 SuspenseLadderPolicy 的闸门判据同源 ----------
     /** 连续同档上限：与计划闸门一致（≥3 章同档即违例），单位是"章"不是比例 */
     private static final double SUSPENSE_HOLD_OK = 2;
     private static final double SUSPENSE_HOLD_DEGRADED = 3;
@@ -209,7 +209,7 @@ public class BatchHealthService {
         addLooseTierShare(metrics, recommendations, chapters);
         addDialogueMetrics(metrics, recommendations, chapters);
         addCandidateMetrics(metrics, recommendations, chapters.size(), candidates);
-        // 2026-09-22 新增：补齐本轮新机制的观测。
+        // 补齐本轮新机制的观测。
         // 此前"生成模式 / 认知边界 / 正文复核"只写代码和日志，体检完全看不到——
         // 后果是改了也说不清效果（"三模式只用 FREE"只能靠 grep 日志得出，而不是看指标）。
         addGenerationModeShare(metrics, recommendations, chapters);
@@ -218,10 +218,10 @@ public class BatchHealthService {
         addAuditVerifyDegradedShare(metrics, recommendations, chapters);
         addRecheckRecoveredShare(metrics, recommendations, blueprints);
         addSuspenseHold(metrics, recommendations, chapters, blueprints);
-        // 2026-10-05 新增：蓝图 fail-soft 降级的显式化——此前只留一条易被淹没的 WARN，
+        // 蓝图 fail-soft 降级的显式化——此前只留一条易被淹没的 WARN，
         // 36-40 章实测整批在旧蓝图上滑行（排期 71 条原地踏步）而批末体检完全看不到
         addStagePlanningCoverage(metrics, recommendations, chapters, blueprints);
-        // 2026-10-05 新增：进度对齐——大纲（chapterGoal）按章段预算的时间/年龄 vs 时序锚实际值。
+        // 进度对齐——大纲（chapterGoal）按章段预算的时间/年龄 vs 时序锚实际值。
         // chapterGoal 缺失或无结构时豁免（fail-soft，与 stagePlanningCoverage 的 legacy 豁免同款）
         addOutlinePacing(metrics, recommendations, chapters, chapterGoal);
         // 伏笔类指标必须与账本同口径：先取清账弃置清单，排除掉"已被判死的条目"
@@ -640,7 +640,7 @@ public class BatchHealthService {
                                    List<String> recommendations,
                                    List<ChapterSummaryEntity> chapters,
                                    List<String> voided) {
-        // 防伪线先于指标本身（2026-10-02）：寿命指标只统计 resolvable=TRUE 的条目，
+        // 防伪线先于指标本身：寿命指标只统计 resolvable=TRUE 的条目，
         // 若模型大面积漏标，样本会被掏空——"指标消失"与"伏笔变健康"在报告上长得一模一样。
         // 所以未标注占比必须**先报**，让人知道该不该相信紧随其后的寿命数字。
         double unlabeled = ForeshadowSpanPolicy.unlabeledRate(chapters);
@@ -831,7 +831,7 @@ public class BatchHealthService {
     private void addNewPlaceRate(List<BatchHealthReport.Metric> metrics,
                                  List<String> recommendations,
                                  List<ChapterSummaryEntity> chapters) {
-        // 按**字面**统计地点，不做同义归并（2026-09-29 实测结论）：曾尝试按公共子串把变体名归并，
+        // 按**字面**统计地点，不做同义归并 实测结论）：曾尝试按公共子串把变体名归并，
         // 但在 162 章基线上把「九渊剑冢」建筑群下 33 个子区域（外围冰瀑下 / 最高处葬剑台 /
         // 核心虚空内 / 前往途中…）全部吞并成一个地点——"同一建筑群的不同子区域"与"同一处的
         // 不同叫法"字面不可分，归并会把真实换场抹平、让本指标失真（比虚高更危险）。

@@ -171,7 +171,7 @@ public class RollingOutlineService {
         }
     }
 
-    // ==================== 章级主线推进 · 聚焦补采（2026-10-02） ====================
+    // ==================== 章级主线推进 · 聚焦补采 ====================
 
     /**
      * 章级主线推进的**聚焦补采结果**（只含这一个字段）。
@@ -244,7 +244,7 @@ public class RollingOutlineService {
         return sb.toString();
     }
 
-    // ==================== 伏笔兑现排期表 · 聚焦补采（2026-10-02，P2b） ====================
+    // ==================== 伏笔兑现排期表 · 聚焦补采P2b） ====================
 
     /**
      * 伏笔排期补采结果（只含这一个字段）。
@@ -632,7 +632,7 @@ public class RollingOutlineService {
         sb.append("【故事大纲】\n").append(nullToBlank(storyContext == null ? null : storyContext.getOutline())).append("\n");
         sb.append("\n【主人公】\n").append(nullToBlank(storyContext == null ? null : storyContext.getProtagonist())).append("\n");
 
-        // 时序锚（2026-10-03）：把主角当前年龄摆进蓝图决策视野。蓝图是"里程碑/悬念档位/退出条件"的
+        // 时序锚：把主角当前年龄摆进蓝图决策视野。蓝图是"里程碑/悬念档位/退出条件"的
         // 源头——若蓝图自己就产出"婴儿完成数论验证"这类超龄里程碑，下游计划层无论怎样都会照抄。
         // 无年龄事实时不渲染（不编造）；新书首段还没有摘要，用设定兜底锚顶上（否则首个蓝图零年龄约束）。
         String timeAnchor = ConsistencyIndexService.renderTimeAnchor(summaries);
@@ -679,7 +679,7 @@ public class RollingOutlineService {
             }
         }
 
-        // 进度对齐块（2026-10-05）：本阶段窗口覆盖的大纲段与里程碑——蓝图任务必须服务大纲路标。
+        // 进度对齐块：本阶段窗口覆盖的大纲段与里程碑——蓝图任务必须服务大纲路标。
         // 此前 chapterGoal（作者的分章预算）从不进蓝图 prompt，规划层在 4 岁弄堂上写"9 岁华杯赛"路标而无人对表。
         // chapterGoal 无结构（散文大纲/解析失败）时豁免——与体检的进度对齐指标同源同容错。
         if (storyContext != null && StringUtils.isNotBlank(storyContext.getChapterGoal())) {

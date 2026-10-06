@@ -281,7 +281,7 @@ public class FinaleReviewService {
                 // 截断到 prompt 约束的字数上限，保住"前缀仍是原文子串"的有效性
                 evidence = EvidenceMatch.truncate(StringUtils.trimToEmpty(evidence),
                         REVIEW_EVIDENCE_MAX_LENGTH);
-                // 统一走 EvidenceMatch（2026-09-18 收编，此前是裸 indexOf）：
+                // 统一走 EvidenceMatch 收编，此前是裸 indexOf）：
                 // 归一化后整串包含，或按省略号分段后各段全命中——只放宽表述/标点差异，不放宽事实有无。
                 if (evidence.isEmpty()
                         || !EvidenceMatch.contained(evidence, normalizedByChapter.get(chapterNo))) {

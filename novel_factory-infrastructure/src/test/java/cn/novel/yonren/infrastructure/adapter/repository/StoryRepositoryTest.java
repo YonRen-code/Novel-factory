@@ -86,7 +86,7 @@ class StoryRepositoryTest {
     void resolve_rejectsSymlinkEscape(@TempDir Path outside) throws IOException, InterruptedException {
         Path link = workspace.resolve("20260902-story-0002");
         assumeTrue(createDirLink(link, outside), "当前环境不支持创建符号链接/junction，跳过");
-        // ⚠️ 2026-09-22 补的前置检查：Windows 上 createSymbolicLink 可能"创建成功"但被判定为
+        // ⚠️ 的前置检查：Windows 上 createSymbolicLink 可能"创建成功"但被判定为
         // **文件**类型（或 junction 回退未真正生效），此时链接根本不是目录，
         // 解析会在"故事目录不存在"这步早退——那条路径不是本用例要验的越界防护。
         // 这种情况属环境语义差异，跳过而不是让断言红着（它曾把后续模块的测试整段 SKIPPED）。
@@ -365,7 +365,7 @@ class StoryRepositoryTest {
         assertEquals(Long.valueOf(1234L), read.getChapterDurations().get("3"));
         assertNoTmpResidue(storyDir);
 
-        // 落盘物必须是**严格合法 JSON**（2026-09-27 实测缺陷：fastjson2 把 Integer 键写成
+        // 落盘物必须是**严格合法 JSON** 实测缺陷：fastjson2 把 Integer 键写成
         // 不带引号的 {3:1234}，Jackson / python json.load / jq 都会解析失败）。
         // 这里直接对磁盘文件做第三方严格解析，而不是回读一遍——回读走 fastjson2，它太宽松，自证不了。
         var strict = new com.fasterxml.jackson.databind.ObjectMapper();

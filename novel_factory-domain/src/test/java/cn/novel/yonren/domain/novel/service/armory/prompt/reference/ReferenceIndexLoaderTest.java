@@ -69,7 +69,7 @@ class ReferenceIndexLoaderTest {
 
     @Test
     void index_templateFileNowHasDigest() {
-        // 2026-09-16 修正：纯模板文件此前没有首段简介，选择器只能看到标题——
+        // 修正：纯模板文件此前没有首段简介，选择器只能看到标题——
         // 而 chapter-template 的标题甚至是占位符「第[X]章：[章节标题]」。现已补齐
         ReferenceIndexEntry entry = byName("chapter-template");
         assertNotNull(entry);

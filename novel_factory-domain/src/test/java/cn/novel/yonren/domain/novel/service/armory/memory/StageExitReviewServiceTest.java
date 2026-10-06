@@ -136,7 +136,7 @@ class StageExitReviewServiceTest {
 
     @Test
     void review_compoundConditionPartialProgressIsVisible() {
-        // 原子化（2026-09-16）：复合条件拆成 2 个分句独立核验。只有 1 个落地 → 整条仍未达成，
+        // 原子化：复合条件拆成 2 个分句独立核验。只有 1 个落地 → 整条仍未达成，
         // 但"已达成 1/2 + 还差哪个分句"必须可见——原实现只给一句"未达成"，模型无从知道补什么
         StageBlueprintEntity stage = StageBlueprintEntity.builder()
                 .stageNo(1).startChapter(1).endChapter(10)
@@ -199,7 +199,7 @@ class StageExitReviewServiceTest {
         assertTrue(prompt.contains("逐分句独立判定"));
     }
 
-    // ---- 2026-09-18 口径收编（裸 indexOf → EvidenceMatch）后的边界测试 ----
+    // ---- 口径收编（裸 indexOf → EvidenceMatch）后的边界测试 ----
 
     @Test
     void review_toleratesQuoteFormDifferenceInEvidence() {
@@ -351,7 +351,7 @@ class StageExitReviewServiceTest {
                         .build());
     }
 
-    // ---- 二阶段：正文复核（2026-09-22）----
+    // ---- 二阶段：正文复核----
     // 一阶段的核验文本是「摘要 + 三账本」，而摘要只记剧情主干、不记动作细节；
     // 于是会出现"正文写了、摘要没记、核验判未达成"的假阴性。复核用正文补这一层，但**门槛不变**。
 

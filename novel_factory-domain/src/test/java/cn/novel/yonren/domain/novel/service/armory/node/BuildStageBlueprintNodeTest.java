@@ -219,7 +219,7 @@ class BuildStageBlueprintNodeTest {
         node.prepareBlueprint(command(), ctx);
 
         // 蓝图是增强件：解析失败回退上一版，不追加、不抛异常、不阻断计划生成
-        //（2026-10-05 起失败自动重试一次，重试仍失败才降级——两次调用均返回垃圾，行为不变）
+        // 起失败自动重试一次，重试仍失败才降级——两次调用均返回垃圾，行为不变）
         assertSame(previous, ctx.getStageBlueprint());
         assertEquals(1, ctx.getStageBlueprints().size());
         verify(llmInvokeService, times(2)).invoke(any(), eq(PromptScene.STAGE_BLUEPRINT), any(), anyString(), any());
@@ -227,7 +227,7 @@ class BuildStageBlueprintNodeTest {
 
     @Test
     void prepare_retriesOnceThenSucceeds() {
-        // 2026-10-05：蓝图解析失败自动重试一次——任务/退出条件/排期都挂在蓝图上，
+        // 蓝图解析失败自动重试一次——任务/退出条件/排期都挂在蓝图上，
         // 静默降级的代价是整批规划缺位（36-40 章实测排期 71 条原地踏步），重试成本（60s）远低于此
         when(llmInvokeService.invoke(any(), eq(PromptScene.STAGE_BLUEPRINT), any(), anyString(), any()))
                 .thenReturn("模型胡言乱语，不是 JSON", VALID_BLUEPRINT_JSON);
@@ -399,7 +399,7 @@ class BuildStageBlueprintNodeTest {
         assertNotNull(blueprint.getCarriedTasks());
         assertTrue(blueprint.getCarriedTasks().stream()
                 .anyMatch(t -> t.getContent().contains("【未达成退出条件】主角突破至炼气九层")));
-        // 退场规则（2026-09-16）：未达成条件必须被**原样注入**本阶段退出条件，否则永不被重验；
+        // 退场规则：未达成条件必须被**原样注入**本阶段退出条件，否则永不被重验；
         // 同时登记继承谱系，供下一轮判定"是否已重验过一次"
         assertTrue(blueprint.getExitConditions().contains("主角突破至炼气九层"),
                 "未达成条件须原样注入本阶段 exitConditions 才能进入核验层");
@@ -449,7 +449,7 @@ class BuildStageBlueprintNodeTest {
     @Test
     void prepare_repairsMissingSuspenseLadderByFocusedRecall() {
         // 三次返回：①主蓝图（缺档位表，也缺章级主线推进）②档位表补采 ③章级主线推进补采。
-        // 每次补采都是**独立的一次聚焦调用**——2026-10-02 新增章级推进后，缺失字段会各触发一次。
+        // 每次补采都是**独立的一次聚焦调用**——章级推进后，缺失字段会各触发一次。
         when(llmInvokeService.invoke(any(), eq(PromptScene.STAGE_BLUEPRINT), any(), anyString(), any()))
                 .thenReturn("{\"stageGoal\":\"目标\",\"endChapter\":55,\"tasks\":[\"任务\"],\"carriedTasks\":[]}")
                 .thenReturn("{\"coreSuspense\":\"外门何时露出破绽\","

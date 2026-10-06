@@ -39,7 +39,7 @@ public class StageBlueprintEntity {
     private List<String> completedFinaleBeats;
     // 阶段目标：本阶段结束时故事应到达的状态（1-2 句）
     private String stageGoal;
-    // 本阶段末的故事时间（蓝图声明，2026-10-05）：时序锚 v2 的推进目标——蓝图是年龄/时间的唯一变更入口（境界式）
+    // 本阶段末的故事时间（蓝图声明，）：时序锚 v2 的推进目标——蓝图是年龄/时间的唯一变更入口（境界式）
     // 由【进度对齐·大纲路标】的末段预算得出；写手/审计据此对表，摘要 timePoint 回验。旧数据为 null
     private String stageEndYear;
     // 本阶段末主角年龄（蓝图声明，与 stageEndYear 同批落地；旧数据为 null）

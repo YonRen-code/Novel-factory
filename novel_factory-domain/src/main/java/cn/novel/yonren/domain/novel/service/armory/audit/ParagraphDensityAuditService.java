@@ -66,7 +66,7 @@ public class ParagraphDensityAuditService {
         try {
             String raw = llmGateway.complete(module, LlmCall.builder()
                     .userPrompt(buildPrompt(item, content, maxPatches))
-                    // 独立场景（2026-10-04 从 audit 拆出）：机械补丁任务此前跟随 audit 的强制思考模型，
+                    // 独立场景 从 audit 拆出）：机械补丁任务此前跟随 audit 的强制思考模型，
                     // 思维链 token 占单次调用 ~2/3（4.8k 字输入 / 700 字输出实付 7-9.5k token）。
                     // ModelScene.PARAGRAPH_AUDIT 在 yml scene-models 配非思考免费档（deepseek-v4-flash）。
                     .label("paragraph-audit-第" + globalNo + "章")

@@ -422,7 +422,7 @@ public class StoryMemoryService {
                 Set<String> seenTexts = new HashSet<>();
                 int budget = 0;
                 int maxChars = properties.getMaxRecallChars();
-                // 单条上限 = 一个切块：正常记忆点本就 ≈MEM_CHUNK_CHARS（2026-09-27 切块），
+                // 单条上限 = 一个切块：正常记忆点本就 ≈MEM_CHUNK_CHARS 切块），
                 // 只有非切块点（卷方向/存量点）会触发截断——防一条长命中独占整个唤醒预算
                 int perHitChars = Math.min(MEM_CHUNK_CHARS, maxChars);
                 for (ScoredVectorPoint hit : merged) {
@@ -442,7 +442,7 @@ public class StoryMemoryService {
                         continue;
                     }
                     // 单条封顶后再试入预算：因 perHitChars <= maxChars，最高分那条必然入选——
-                    // 有命中时前缀不会为空（2026-09-27 起首条不再"整条放行"，防长命中撑爆预算）
+                    // 有命中时前缀不会为空 起首条不再"整条放行"，防长命中撑爆预算）
                     String admitted = text.length() > perHitChars ? truncateTo(text, perHitChars) : text;
                     if (budget + admitted.length() > maxChars) {
                         // 装不下：跳过本条继续看后续候选（贪心填满预算）。
@@ -484,7 +484,7 @@ public class StoryMemoryService {
             throw new AppException(ResponseCode.UN_ERROR.getCode(),
                     "故事记忆检索被取消（作业中断，不降级继续）", last);
         }
-        // 重试耗尽或确定性失败：降级留痕继续生成（2026-09-29 统一，原语义为终止作业）。
+        // 重试耗尽或确定性失败：降级留痕继续生成 统一，原语义为终止作业）。
         // 记忆唤醒是增强件——主链路（正文 LLM 调用）的欠费/鉴权失败会自行暴露，检索层代劳终止
         // 只会放大故障面；但降级必须可归因，grep RECALL_DEGRADED 即可定位本批哪些环节无检索
         log.warn("RECALL_DEGRADED 故事记忆检索失败，本批降级为无检索唤醒继续"

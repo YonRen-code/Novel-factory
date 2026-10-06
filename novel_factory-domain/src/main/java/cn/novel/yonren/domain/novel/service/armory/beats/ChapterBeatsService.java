@@ -64,7 +64,7 @@ public class ChapterBeatsService {
                 return null;
             }
             log.info("第 {} 章场景节拍生成完成，共 {} 拍", globalNo, beats.getBeats().size());
-            // 信息增量机械检查（2026-09-22）：节拍 prompt 里早有"每拍必须兑现信息增量"的纪律，
+            // 信息增量机械检查：节拍 prompt 里早有"每拍必须兑现信息增量"的纪律，
             // 但此前**没有任何机械校验**——无状态变化的拍会诱导模型"原地扩写"凑篇幅。
             // 判据与 renderBeatsPrompt 的纪律同源（infoGain 承载 新信息/状态变化/关系变化）。
             long stagnant = beats.getBeats().stream().filter(b -> !hasStateChange(b)).count();

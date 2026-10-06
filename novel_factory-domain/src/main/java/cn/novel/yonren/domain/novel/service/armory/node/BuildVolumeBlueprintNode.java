@@ -144,7 +144,7 @@ public class BuildVolumeBlueprintNode extends AbstractArmorySupport {
             log.warn("卷向量方向召回失败，已跳过（不阻断生成）：{}", e.getMessage());
         }
 
-        // 大纲分卷钳制（2026-10-05）：chapterGoal 的卷骨架是全书路标——本卷区间机械锁定，
+        // 大纲分卷钳制：chapterGoal 的卷骨架是全书路标——本卷区间机械锁定，
         // 模型只填卷主旨/承转合/弧线（根治"1-360 融成一卷"——卷路标与正文漂移无人对表）。
         // 无大纲/无匹配卷时保持原行为（fail-soft，通用化：非分章大纲自动豁免）
         OutlineSegmentParser.OutlineVolumeSkeleton outlineVolume = null;

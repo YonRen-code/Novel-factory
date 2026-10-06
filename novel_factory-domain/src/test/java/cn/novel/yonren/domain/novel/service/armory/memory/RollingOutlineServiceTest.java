@@ -125,7 +125,7 @@ class RollingOutlineServiceTest {
         assertTrue(prompt.contains("【上一阶段退出条件核验】"));
         assertTrue(prompt.contains("未达成：主角突破至炼气九层（缺口：境界仍为炼气八层）"));
         assertTrue(prompt.contains("已达成：幽冥谷与外门公开敌对（证据：第9章「公开敌对」）"));
-        // 退场规则（2026-09-16）：未达成条件由系统原样注入下阶段 exitConditions 并重验一次，
+        // 退场规则：未达成条件由系统原样注入下阶段 exitConditions 并重验一次，
         // 模型不得重复登记、不得改写措辞、不得标放弃
         assertTrue(prompt.contains("原样注入"));
         assertTrue(prompt.contains("严禁改写其措辞或标为放弃"));

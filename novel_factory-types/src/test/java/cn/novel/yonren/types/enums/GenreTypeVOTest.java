@@ -13,7 +13,7 @@ class GenreTypeVOTest {
 
     @Test
     void match_themeHitsFantasy() {
-        // 修仙/玄幻仍归 FANTASY；"都市异能"自 2026-10-04 起归 ABILITY（修仙向与异能向资料分岗）
+        // 修仙/玄幻仍归 FANTASY；"都市异能"自 起归 ABILITY（修仙向与异能向资料分岗）
         assertEquals(GenreTypeVO.FANTASY, GenreTypeVO.match("修仙", ""));
         assertEquals(GenreTypeVO.FANTASY, GenreTypeVO.match("玄幻仙侠", null));
         assertEquals(GenreTypeVO.ABILITY, GenreTypeVO.match("都市异能", null));

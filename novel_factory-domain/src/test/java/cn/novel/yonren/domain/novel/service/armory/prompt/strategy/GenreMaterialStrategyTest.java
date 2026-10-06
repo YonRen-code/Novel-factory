@@ -57,7 +57,7 @@ class GenreMaterialStrategyTest {
     void defaultGenreOnlyFallsBackToDefaultStyle() {
         when(fileLoader.load("styles/default.md")).thenReturn("默认风格内容");
 
-        // "科幻太空"自 2026-10-04 起路由 SCIFI（不再落 DEFAULT），default 用例改用不可路由题材
+        // "科幻太空"自 起路由 SCIFI（不再落 DEFAULT），default 用例改用不可路由题材
         List<PromptRule> rules = strategy.load(PromptScene.CHAPTER_PLAN, ctx("美食探店"));
 
         assertEquals(List.of("style-default"), names(rules));
@@ -66,7 +66,7 @@ class GenreMaterialStrategyTest {
 
     @Test
     void scifiGenreLoadsGenrePack() {
-        // 2026-10-04 新增科技流题材包：大纲场景四件全装（风格 x2 + 弧线 + 范例）
+        // 科技流题材包：大纲场景四件全装（风格 x2 + 弧线 + 范例）
         when(fileLoader.load("styles/scifi.md")).thenReturn("科技风格");
         when(fileLoader.load("references/genres/scifi/style-references.md")).thenReturn("科技题材风格");
         when(fileLoader.load("references/genres/scifi/arc-templates.md")).thenReturn("科技弧线");
@@ -79,7 +79,7 @@ class GenreMaterialStrategyTest {
 
     @Test
     void urbanGenreLoadsGenrePack() {
-        // 2026-10-04 新增都市现实题材包：此前"都市重生"落 DEFAULT 完全没有题材资料
+        // 都市现实题材包：此前"都市重生"落 DEFAULT 完全没有题材资料
         when(fileLoader.load("styles/urban.md")).thenReturn("都市风格");
         when(fileLoader.load("references/genres/urban/style-references.md")).thenReturn("都市题材风格");
         when(fileLoader.load("references/genres/urban/arc-templates.md")).thenReturn("都市弧线");

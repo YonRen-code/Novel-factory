@@ -82,7 +82,7 @@ public class ForeshadowScheduleService {
         if (schedules == null || schedules.isEmpty()) {
             return List.of();
         }
-        // 跨块 intent 去重（2026-10-05，46-50 章实测）：同一意图会在"历史块 + 结转块"各存一份
+        // 跨块 intent 去重46-50 章实测）：同一意图会在"历史块 + 结转块"各存一份
         //（老书实测：一条"工厂管理层注意运气"双条目双双 MISSED）——展平时按归一 intent 保留**最后一个**
         //（块序=阶段序，最后一个是最新状态），避免同线双计污染打标与注入
         java.util.LinkedHashMap<String, ForeshadowScheduleEntity.ScheduleItem> dedup = new java.util.LinkedHashMap<>();

@@ -68,7 +68,7 @@ public class StageReportService {
         sb.append("- 账本更新：角色 ").append(characterUpdates).append(" 项 / 物品 ").append(itemUpdates)
                 .append(" 项 / 势力 ").append(factionUpdates).append(" 项\n");
 
-        // 地点维度（2026-09-16 新增）：本阶段不同地点数 / 章均新地点数 + 过渡章数。
+        // 地点维度 新增）：本阶段不同地点数 / 章均新地点数 + 过渡章数。
         // 报告此前只统字数/伏笔/账本，地点信号完全缺位——而"每章换场"正是由此无人校准的
         Map<String, Integer> placeFreq = new LinkedHashMap<>();
         for (ChapterSummaryEntity summary : stageSummaries) {

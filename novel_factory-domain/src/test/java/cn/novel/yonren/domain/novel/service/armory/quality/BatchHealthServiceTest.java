@@ -81,7 +81,7 @@ class BatchHealthServiceTest {
     @Test
     @DisplayName("阶段规划覆盖：蓝图止点落后 = 本批在旧蓝图下滑行，应 DEGRADED 并给补跑建议")
     void stagePlanningCoverage_uncoveredBlueprintIsDegraded() {
-        // 2026-10-05：蓝图 fail-soft 降级的显式化——蓝图止点落后于已写末章 = 本批在旧蓝图下滑行
+        // 蓝图 fail-soft 降级的显式化——蓝图止点落后于已写末章 = 本批在旧蓝图下滑行
         List<ChapterSummaryEntity> chapters = healthyChapters(12);
         StageBlueprintEntity stale = StageBlueprintEntity.builder().stageNo(7).endChapter(5).build();
 
@@ -526,7 +526,7 @@ class BatchHealthServiceTest {
         assertFalse(metricOrNone(service.assess(healthyChapters(12), List.of(), List.of()), "dialogueRatio"));
     }
 
-    // ---- 2026-09-22 新增的观测项：补齐"生成模式 / 认知边界 / 正文复核"三处此前的观测盲区 ----
+    // ---- 的观测项：补齐"生成模式 / 认知边界 / 正文复核"三处此前的观测盲区 ----
 
     @Test
     @DisplayName("主线最长停留：整批卡在同一档时给出违规级指标与排查方向")

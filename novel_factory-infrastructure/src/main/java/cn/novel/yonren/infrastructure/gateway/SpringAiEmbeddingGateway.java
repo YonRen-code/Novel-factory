@@ -67,7 +67,7 @@ public class SpringAiEmbeddingGateway implements EmbeddingGateway {
         }
         OpenAiEmbeddingModel model = embeddingModel(module);
         List<String> capped = capInputLength(texts);
-        // 分批（2026-09-22）：供应商对**单次请求的条数**另有上限——实测 text-embedding-v3 为 10，
+        // 分批：供应商对**单次请求的条数**另有上限——实测 text-embedding-v3 为 10，
         // 一次发 390 条会被直接拒（400 batch size is invalid），而参考资料索引是**硬依赖**（失败即终止作业）。
         // 分批对调用方完全透明：返回顺序与入参一一对应。
         int batchSize = resolveBatchSize(module);

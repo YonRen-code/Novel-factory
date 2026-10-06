@@ -75,7 +75,7 @@ public class ChapterPlanSegmentPlanner {
         } else {
             log.info("{}主线推进闸门启用：档位表 {} 档，校验 {} 章", label, suspenseLadder.size(), expected);
         }
-        // 章级主线推进（2026-10-02）：与档位是两个维度——档位答"走到第几格"（纵向），
+        // 章级主线推进：与档位是两个维度——档位答"走到第几格"（纵向），
         // 本项答"这一章主线做了什么"（横向）。档位只有 3-6 档覆盖整个阶段，
         // 多章共用同一档是常态，故横向维度必须独立校验。
         List<StageBlueprintEntity.MainLineBeat> mainLine =
@@ -93,7 +93,7 @@ public class ChapterPlanSegmentPlanner {
                     mainLine == null ? 0 : mainLine.size());
             return parsed;
         }
-        // 两类违规各自带**差异化修正指令**（2026-10-02 教训：反馈不点名就等于让模型原样重生成一遍）
+        // 两类违规各自带**差异化修正指令** 教训：反馈不点名就等于让模型原样重生成一遍）
         StringBuilder feedback = new StringBuilder();
         if (ladderIssue != null) {
             feedback.append(ChapterPlanChecks.suspenseFeedback(ladderIssue));
@@ -108,7 +108,7 @@ public class ChapterPlanSegmentPlanner {
                 ladderIssue == null ? "-" : ladderIssue,
                 mainLineIssue == null ? "-" : mainLineIssue,
                 timeAdvanceIssue == null ? "-" : timeAdvanceIssue);
-        // 重规划跳过分支推演（2026-10-01）：打回反馈已具体到"第 N 章起推进档位"，
+        // 重规划跳过分支推演：打回反馈已具体到"第 N 章起推进档位"，
         // 方向不需要重新探索——重跑双稿+评审只是每次打回多烧 3 次思考调用
         //（实测 kimi-k3 一轮打回放大出 6 次 10 分钟级调用）。首次规划仍走完整分支推演
         PlannedSegment retry = invokeWithFallback(storyVO, ctx,

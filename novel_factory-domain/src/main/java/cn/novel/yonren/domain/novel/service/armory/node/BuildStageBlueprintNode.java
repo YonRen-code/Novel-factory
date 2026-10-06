@@ -100,7 +100,7 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
         while (rollingOutlineService.needsGeneration(blueprints, batchEnd)) {
             StageBlueprintEntity previous = rollingOutlineService.latestOf(blueprints);
             int windowStart = ( previous == null ? nextChapterNo : previous.getEndChapter() + 1 );
-            // 失败自动重试一次（2026-10-05，36-40 章实测）：蓝图决定本批任务/退出条件/排期，
+            // 失败自动重试一次36-40 章实测）：蓝图决定本批任务/退出条件/排期，
             // 解析失败静默降级的代价是整批在旧蓝图上滑行（排期原地踏步、第 8 阶段任务与出口条件缺位），
             // 一次重试的成本（60s）远低于整批规划缺位——与段推进校验的"重规划一次"同款宽容度。
             StageBlueprintEntity blueprint = null;
@@ -189,7 +189,7 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
         // 未达成的退出条件机械化结转：不信任模型自评，结转清单缺失即补
         mergeUnmetExitConditions(previous, blueprint);
 
-        // 悬念档位表补采（2026-09-22）：档位表是"主线推进闸门"的唯一标尺，但在完整蓝图 prompt 里
+        // 悬念档位表补采：档位表是"主线推进闸门"的唯一标尺，但在完整蓝图 prompt 里
         // 它只是第 11 条要求——实测模型会在长 prompt 里**静默省略**这两个字段。缺了它，锚块不注入、
         // 校验直接跳过、指标不出：整条推进链路会一声不响地空转。
         // ⇒ 不把可靠性押在一次服从上：缺了就**只问这两个字段**再补一次（短 prompt 服从率高），
@@ -198,12 +198,12 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
             repairSuspenseLadder(requestParameter, dynamicContext, storyContext, promptContext, blueprint);
         }
 
-        // 章级主线推进补采（2026-10-02）：与档位表同理——逐章数组放在长 prompt 里被省略的概率更高，
+        // 章级主线推进补采：与档位表同理——逐章数组放在长 prompt 里被省略的概率更高，
         // 缺了就**只问这一项**再补一次。档位表在补采之后才确定，所以本补采放在它之后，
         // 好把已定档位表一并喂进去（章级推进必须与档位相容，否则两张表会互相打架）。
         repairMainLine(requestParameter, dynamicContext, storyContext, promptContext, blueprint);
 
-        // 伏笔兑现排期表补采（2026-10-02，P2b）：同为"缺了就只问这一项"的聚焦补采。
+        // 伏笔兑现排期表补采P2b）：同为"缺了就只问这一项"的聚焦补采。
         // 放在最后——它要看阶段区间与 hardTotal，与档位/章级推进无依赖但同属"蓝图缺失字段"家族。
         repairForeshadowSchedule(requestParameter, dynamicContext, storyContext, promptContext, blueprint);
 
@@ -211,7 +211,7 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
                 blueprint.getStageNo(), blueprint.getStartChapter(), blueprint.getEndChapter(),
                 blueprint.getTasks() == null ? 0 : blueprint.getTasks().size(),
                 blueprint.getCarriedTasks() == null ? 0 : blueprint.getCarriedTasks().size());
-        // stageEnd 机械校验+回填（2026-10-06，61-65 批实测）：12.1 要求模型从【进度对齐·大纲路标】
+        // stageEnd 机械校验+回填61-65 批实测）：12.1 要求模型从【进度对齐·大纲路标】
         // 声明 stageEndYear/Age，但实测会胡写（stageEndYear=1990，早于故事开局 2002 年）——
         // 不信任声明，以大纲段预算为准校验回填（零成本、确定性，与卷区间的机械钳制同款思路）
         repairStageEndFromOutline(requestParameter, storyContext, blueprint, previous);

@@ -129,7 +129,7 @@ public class StoryJobService {
         if (pending != null) {
             return pending.plan;
         }
-        // 不变式（2026-09-28）：状态置位（审批门节点）与待裁决记录登记（本类）非原子，中间有微窗口；
+        // 不变式：状态置位（审批门节点）与待裁决记录登记（本类）非原子，中间有微窗口；
         // 作业在置位时已携带计划，故"状态可见 ⇒ 计划可读"成立。非挂起态一律 null——
         // 裁决退出走 exitApprovalWait，作业侧计划已随之清空，不会读到过期内容
         GenerationJob job = jobRegistry.get(jobId);

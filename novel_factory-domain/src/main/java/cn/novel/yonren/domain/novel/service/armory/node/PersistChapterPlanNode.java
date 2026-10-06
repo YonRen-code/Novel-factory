@@ -78,7 +78,7 @@ public class PersistChapterPlanNode extends AbstractArmorySupport {
         storyRepository.writeStyleStat(storyDir, dynamicContext.getStyleStat());
         storyRepository.writeStyleFingerprints(storyDir, dynamicContext.getStyleFingerprints());
         storyRepository.writeConsistencyIndex(storyDir, dynamicContext.getConsistencyIndex());
-        // 伏笔排期表终态兜底（2026-10-03）：stamp() 的状态推进只改内存，蓝图节点仅在补采时写一次，
+        // 伏笔排期表终态兜底：stamp() 的状态推进只改内存，蓝图节点仅在补采时写一次，
         // 逐章检查点负责每章同步——这里是批次结束时的最终兜底，三者缺一状态就会回退
         storyRepository.writeForeshadowSchedule(storyDir, dynamicContext.getForeshadowSchedules());
         storyRepository.writeGenerationRecord(runDir, requestParameter, dynamicContext);

@@ -179,7 +179,7 @@ public class ChapterMemoryService {
             if (hints.isEmpty()) {
                 continue;
             }
-            // 最短跨度豁免（2026-10-01）：刚埋下的伏笔本章就要用，禁泄表拦它只会逼写手含糊其辞。
+            // 最短跨度豁免：刚埋下的伏笔本章就要用，禁泄表拦它只会逼写手含糊其辞。
             // 扫描与清单块**同时**排除，避免"清单说禁、扫描不查"的口径分裂
             if (currentNo > 0 && currentNo - p.chapterNo() < SECRECY_MIN_SPAN_CHAPTERS) {
                 continue;
@@ -324,7 +324,7 @@ public class ChapterMemoryService {
                                                            String timeAdvance) {
         if (summaries == null || summaries.isEmpty()) {
             // 摘要为空 = 新书首段：**不能整块清空**——方向类块不依赖摘要，仍须注入。
-            // 2026-10-03 实测事故：首段计划输入仅剩[故事设定]，阶段蓝图/卷方向锚全部丢失，
+            // 实测事故：首段计划输入仅剩[故事设定]，阶段蓝图/卷方向锚全部丢失，
             // 计划层据此编出超龄事件（写手只忠实执行契约），阶段出口条件达成率仅 2/5。
             // 年龄约束由调用方经 prependSettingsAnchorIfNoSummaries 追加（摘要锚此时无从产生）。
             List<PromptBudgetGuard.Block> blocks = new ArrayList<>();
@@ -355,13 +355,13 @@ public class ChapterMemoryService {
         }
         blocks.add(section("境界锁定", MEMORY_PRIORITY_REALM_LOCK, false, head));
 
-        // 时序锚（2026-10-03）：主角当前年龄与故事时间。与境界锁定同级、同样不可截断——
+        // 时序锚：主角当前年龄与故事时间。与境界锁定同级、同样不可截断——
         // 26-30 章批次因计划 prompt 里"当前月龄出现 0 次"，把圣经 band"21-30 章步入小学／自学高阶数学"
         // 直接落到了十一个月大的婴儿身上（写数论证明、列乘法竖式）。年龄必须像境界一样每路显式锁定：
         // 认知可超前、媒介不可超前。无年龄事实时**整块不加入**（不编造、也不留空标签占位）。
         String timeAnchor = ConsistencyIndexService.renderTimeAnchor(ordered);
         if (StringUtils.isNotBlank(timeAnchor)) {
-            // 时序锚 v2（2026-10-05，境界式）：年龄/时间升级为锁定值——禁止擅自增减，
+            // 时序锚 v2境界式）：年龄/时间升级为锁定值——禁止擅自增减，
             // 唯一合法推进通道是计划声明的 timeAdvance（与【主角境界锁定】同一数据流）。
             // 45 章时间冻结（2002 年 7 月走了 2-3 周）的根因就是旧锚只"描述推算"、无推进通道
             String locked = timeAnchor + "\n【时间锁】年龄/故事时间以上述值为准，禁止在正文中擅自增长、倒退或跳跃；"
@@ -527,7 +527,7 @@ public class ChapterMemoryService {
         }
         String mentionText = item == null ? null : itemMentionText(item);
         // 所有实体合并进同一个「实体档案」块：预算守卫要求场景内 label 唯一，
-        // 多实体拆多块会同 label 触发"前缀装配块 label 重复"（2026-09-30 实测炸过规划路径）
+        // 多实体拆多块会同 label 触发"前缀装配块 label 重复" 实测炸过规划路径）
         StringBuilder dossierBody = new StringBuilder();
         int injected = 0;
         for (LedgerEntry entry : dormant) {
@@ -1345,7 +1345,7 @@ public class ChapterMemoryService {
             }
         }
         sb.append("\n【").append(title).append("】\n");
-        // 只出现一次的条目只列名、不带状态（2026-09-29）。
+        // 只出现一次的条目只列名、不带状态。
         // 判定依据：合并时 lastChapterNo **每次提及都会刷新**（见 buildLedger），
         // 故"首现章 == 最近提及章" ⟺ 只出现过一次。
         // 动因：实测本书第 16 章物品账本活跃 26 条 1737 字中，有 14 条（888 字，占一半）只出现过一次，

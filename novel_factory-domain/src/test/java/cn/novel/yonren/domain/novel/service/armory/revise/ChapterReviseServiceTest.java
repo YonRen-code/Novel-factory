@@ -88,7 +88,7 @@ class ChapterReviseServiceTest {
 
     @Test
     void revise_toleratesSingleKeyEventLoss_forBlockingFix() {
-        // 2026-10-04：允许以 ≤1 条关键事件损失换取 BLOCKING 修复——违规现场常与事件场景重叠
+        // 允许以 ≤1 条关键事件损失换取 BLOCKING 修复——违规现场常与事件场景重叠
         //（"4岁写出2026"本身就是排期项），修复必然改写该场景，一字不差的要求只会造成不可修复的拒绝循环
         String revisedJson = "{\"chapterNo\":1,\"title\":\"测试章\",\"content\":\"林尘拔剑，事件A发生，随后他收剑环顾，把余下段落补足长度，使修订稿不至于因字数闸被拒，结尾落在事件C上。\"}";
         when(llmGateway.complete(any(), any(LlmCall.class))).thenReturn(revisedJson);
@@ -174,7 +174,7 @@ class ChapterReviseServiceTest {
 
     @Test
     void revise_acceptsWhenStyleWorsens_styleGateIsAdvisory() {
-        // 2026-10-03：风格账闸降级为告知——"新增跨章重复句/疲劳词跨线"是 MINOR 级问题，
+        // 风格账闸降级为告知——"新增跨章重复句/疲劳词跨线"是 MINOR 级问题，
         // 不得否决 BLOCKING 修复（原实现直接拒稿，导致多章两轮修订全灭、硬伤带病落盘）
         String revisedJson = "{\"chapterNo\":1,\"title\":\"测试章\",\"content\":\"林尘拔剑，事件A发生，事件B发生，结尾呼应钩子。这也是一句很长的话用来凑字数。\"}";
         when(llmGateway.complete(any(), any(LlmCall.class))).thenReturn(revisedJson);
@@ -192,7 +192,7 @@ class ChapterReviseServiceTest {
 
     @Test
     void revise_acceptsWhenFatigueWordCrossesThreshold() {
-        // 2026-10-03：疲劳词越线同样降级为告知（原实现会拒稿）
+        // 疲劳词越线同样降级为告知（原实现会拒稿）
         StyleStatEntity stat = emptyStyleStat();
         // 全书已累计 4 次（阈值 5）——修订稿把"微微"推过线
         styleStatService.merge(stat, "微微点头，微微抬眸，微微弯起嘴角，微微退后半步。");

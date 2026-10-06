@@ -150,7 +150,7 @@ class StoryMemoryServiceTest {
 
     @Test
     void splitByBoundary_cutsAtSentenceBoundaryAndAlwaysTerminates() {
-        // 回归（2026-09-27 切块）：此前"一章一个点、整份 bible 一个点"，
+        // 回归 切块）：此前"一章一个点、整份 bible 一个点"，
         // 单点 2000~3000 字，唤醒预算绑不住、召回粒度也太粗。
         String sentences = "第一句话在这里。第二句话在这里！第三句话在这里？第四句话在这里；第五句话在这里。";
         List<String> pieces = StoryMemoryService.splitByBoundary(sentences, 12);
@@ -187,7 +187,7 @@ class StoryMemoryServiceTest {
 
     @Test
     void retrieve_truncatesOversizedFirstHitToBudget() {
-        // 回归（2026-09-27）：旧实现"至少保留首条"让单条大命中（chapter/bible 记忆点实测 2000~3000 字）
+        // 回归：旧实现"至少保留首条"让单条大命中（chapter/bible 记忆点实测 2000~3000 字）
         // 原样灌进前缀，600 的预算形同虚设——生产日志里「唤醒」块在 129~3166 字之间剧烈波动。
         // 现在首条也按预算截断，前缀长度才可预期、预算数值才谈得上可调。
         String oversized = "记".repeat(3000);
@@ -212,7 +212,7 @@ class StoryMemoryServiceTest {
     void retrieve_embeddingFailureDegradesWithEmptyRecall() {
         when(embeddingGateway.embed(any(), anyList())).thenThrow(new RuntimeException("embedding 服务不可用"));
 
-        // 不可重试的失败：降级为空召回继续生成（2026-09-29 统一语义，原为终止作业），
+        // 不可重试的失败：降级为空召回继续生成 统一语义，原为终止作业），
         // 调用侧以 RECALL_DEGRADED 日志留痕，不静默
         List<StoryMemoryService.RecallHit> hits =
                 service.retrieve(module(), Paths.get("story"), "查询", null, null);

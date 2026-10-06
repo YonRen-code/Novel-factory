@@ -352,7 +352,7 @@ public final class ForeshadowSpanPolicy {
             return list;
         }
         for (ChapterSummaryEntity.SeedEntry entry : summary.getForeshadowSeeds()) {
-            // 严格口径只统计**声明了兑现义务**的条目（2026-10-02）：
+            // 严格口径只统计**声明了兑现义务**的条目：
             // 人物状态/氛围点缀/事实陈述不承担兑现义务，计入会把"在途"与寿命分母一起注水，
             // 实测导致指标从 2.23 章"恶化"到 1.90 章——**指标惩罚了正确的修复**。
             // resolvable == null（老数据/模型漏标）同样不计入，改用 unlabeledRate 单独观测。

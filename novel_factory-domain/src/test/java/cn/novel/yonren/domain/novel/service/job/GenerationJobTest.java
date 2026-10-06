@@ -86,7 +86,7 @@ class GenerationJobTest {
 
     @Test
     void markAwaitingApproval_handsOverPendingPlanAtomically() {
-        // 不变式（2026-09-28）：状态置位与计划交接同一次调用完成（先写计划再置状态），
+        // 不变式：状态置位与计划交接同一次调用完成（先写计划再置状态），
         // 于是"读到 AWAITING_APPROVAL 的读者必然也能读到计划"，不再受服务层登记时序影响
         GenerationJob job = new GenerationJob("job-1");
         job.markRunning();

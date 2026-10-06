@@ -232,7 +232,7 @@ class ChapterSummaryServiceTest {
 
     @Test
     void summarize_missingEvidenceGoesToPendingForAdjudication() {
-        // 2026-09-16 修正：未附 evidence（降级路径/模型未遵从）**不再直接入账**。
+        // 修正：未附 evidence（降级路径/模型未遵从）**不再直接入账**。
         // 原实现是后门——模型只要不写引文，状态就全部绕过反编造门进账本，
         // 且裁决层永远看不到它们。现转入挂起层：
         //  · 必须带 sourceAccount（否则裁决回写按 CHARACTER 兜底，物品/势力会被写错账）

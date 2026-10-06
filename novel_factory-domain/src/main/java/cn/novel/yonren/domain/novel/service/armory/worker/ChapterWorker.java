@@ -297,7 +297,7 @@ public class ChapterWorker {
                             recallMinChapterNo(summaries),
                             storyContext.getWorldId());
             List<StoryMemoryService.RecallHit> recallHits = recall.hits();
-            // 卷方向锚随记忆前缀注入（2026-09-28）：按章号取所属卷——批次跨卷边界时
+            // 卷方向锚随记忆前缀注入：按章号取所属卷——批次跨卷边界时
             // 最新卷可能尚未开始，取它会把下一卷主旨/卷级伏笔提前泄给旧卷章节
             // 防御性拷贝：档案块要追加进列表，不依赖 buildMemoryBlocks 返回可变集合
             List<PromptBudgetGuard.Block> memoryBlocks = new ArrayList<>(chapterMemoryService.buildMemoryBlocks(
@@ -305,7 +305,7 @@ public class ChapterWorker {
                     currentStageBlueprint(dynamicContext.getStageBlueprints(), globalNo),
                     rollingOutlineService.volumeAt(dynamicContext.getVolumes(), globalNo), recallHits,
                     item.getTimeAdvance()));
-            // 新书首段（无摘要）：追加设定兜底年龄锚——否则第一章在零年龄约束下生成（2026-10-03 实测）
+            // 新书首段（无摘要）：追加设定兜底年龄锚——否则第一章在零年龄约束下生成 实测）
             chapterMemoryService.prependSettingsAnchorIfNoSummaries(memoryBlocks, summaries,
                     storyContext.getWorldSetting(), storyContext.getProtagonist(), storyContext.getOutline());
             // 实体档案（E1）：本章涉及的休眠实体（老角色/旧物品/势力）的档案注入——
@@ -327,7 +327,7 @@ public class ChapterWorker {
             String usedPatternBlacklist = buildUsedPatternBlacklist(summaries, globalNo);
             // 前缀总预算守门：各块独立封顶之和仍可能击穿模型输入窗口，统一按优先级装配——
             // 渲染顺序仍为旧版拼接顺序：末态红线 → 记忆各节（buildMemoryBlocks） → 门禁类块；
-            // 记忆拆为子块（2026-09-28）：整块截尾会先牺牲最近/纠错类尾部，分块后牺牲顺序由 priority 决定
+            // 记忆拆为子块：整块截尾会先牺牲最近/纠错类尾部，分块后牺牲顺序由 priority 决定
             List<PromptBudgetGuard.Block> prefixBlocks = new ArrayList<>();
             prefixBlocks.add(PrefixBlock.EDGE_STATE.toBlock(edgeState));
             prefixBlocks.addAll(memoryBlocks);
@@ -343,7 +343,7 @@ public class ChapterWorker {
             }
             String fullPrefix = promptBudgetGuard.assembleChapterPrefix(globalNo, prefixBlocks);
 
-            // 章节契约 + 生成模式（2026-09-22）：契约把"任务层"从一段文本提升为可判定对象；
+            // 章节契约 + 生成模式：契约把"任务层"从一段文本提升为可判定对象；
             // 模式由「契约完整度 + 节拍可用性」决定，三档都有真实触发场景，且落日志以便归因
             ChapterContract contract = ChapterContract.of(item, summaries);
             ChapterBeatsEntity beats = chapterBeatsService.buildBeats(
@@ -398,7 +398,7 @@ public class ChapterWorker {
             // 后者不参与修订与候选触发（见 GateResult 分账说明），但必须落债——
             // 否则「降档」等于把问题直接丢掉，观测层与规划层回灌都拿不到信号。
             //
-            // 例外（2026-09-30）：修订验证"没跑成"时，unresolvedBlocking 的语义是【未验证】而非
+            // 例外：修订验证"没跑成"时，unresolvedBlocking 的语义是【未验证】而非
             // 【确认未修复】——把它记成债等于把基础设施抖动写成内容缺陷，再回灌给写手当
             // "你上一章犯的错"。故这类不落债，只留 WARN + 落盘标记供体检单独立账（与 RECALL_DEGRADED 同则）
             List<ChapterIssueEntity> debtIssues = new java.util.ArrayList<>();
@@ -449,10 +449,10 @@ public class ChapterWorker {
             // 密度信号机械入账（非模型输出）：规划层据此判断"计划供给是否太稀"，短章不回炉、下章加料
             summary.setValidChars(cn.novel.yonren.domain.novel.service.armory.quality.ChapterLengthPolicy
                     .effectiveCharacterCount(chapterContent.getContent()));
-            // 检索降级标记落进摘要（2026-09-29）：只在日志里 WARN 的话，体检读不到"本批几章是裸跑的"；
+            // 检索降级标记落进摘要：只在日志里 WARN 的话，体检读不到"本批几章是裸跑的"；
             // 落盘后健康判停那条读盘重算的路径也能看到（与 generationMode 同一理由）
             summary.setRecallDegraded(recall.degraded());
-            // 修订验证未跑成的标记（2026-09-30）同样落盘：体检据此把【未验证】与【真债】分开计数，
+            // 修订验证未跑成的标记同样落盘：体检据此把【未验证】与【真债】分开计数，
             // 否则"验证没跑成"除了翻日志无从发现
             summary.setAuditVerifyDegraded(gateResult.auditVerifyDegraded());
             summary.setKeyEventCount(item.getKeyEvents() == null ? 0 : item.getKeyEvents().size());
@@ -475,7 +475,7 @@ public class ChapterWorker {
             // "全篇至多 2 次"的上限每批重置（原实现的缺陷）
             summary.setMechanismDescribed(consistencyIndexService.describesMechanism(
                     chapterContent.getContent(), requestParameter.getStoryVO()));
-            // 把本章的两个运行时事实落进摘要（2026-09-22）：体检要统计"生成模式分布"与
+            // 把本章的两个运行时事实落进摘要：体检要统计"生成模式分布"与
             // "认知边界注入率"，而健康判停是**读盘重算**的，只放内存里那条路看不到。
             summary.setGenerationMode(mode == null ? null : mode.name());
             summary.setKnowledgeBoundaryInjected(
@@ -484,7 +484,7 @@ public class ChapterWorker {
             summary.setSuspenseBeat(item.getSuspenseBeat());
             summaries.add(summary);
 
-            // 伏笔排期打标（2026-10-02，P2b）：本章新埋的种子与排期表配对，回填 scheduledPayoffChapter，
+            // 伏笔排期打标P2b）：本章新埋的种子与排期表配对，回填 scheduledPayoffChapter，
             // 并推进 PLANNED→PLANTED→PAID / 到期未埋→MISSED。
             // 放在"摘要进 summaries"之后、"落盘"之前——与 stripVoidedForeshadows 同款就地修改契约。
             // 无排期表时整体跳过（老故事/未启用），行为与引入前完全一致。
@@ -529,7 +529,7 @@ public class ChapterWorker {
                     storyRepository.writeConsistencyIndex(storyDir, consistencyIndex);
                     storyRepository.writeStageBlueprints(storyDir, dynamicContext.getStageBlueprints());
                     storyRepository.writeVolumes(storyDir, dynamicContext.getVolumes());
-                    // 伏笔排期表随批落盘（2026-10-03）：stamp() 只就地改内存，蓝图节点仅在补采时写一次——
+                    // 伏笔排期表随批落盘：stamp() 只就地改内存，蓝图节点仅在补采时写一次——
                     // 漏了这里，PLANTED/PAID/MISSED 与排期状态重启即丢（实测两批 MISSED 从未落盘）
                     storyRepository.writeForeshadowSchedule(storyDir, dynamicContext.getForeshadowSchedules());
                     // 二期/三期/五期：本章摘要 + 最新账本 + 设定幂等写入故事记忆集合；worldId 合法时 bible 点另写世界集合
@@ -947,7 +947,7 @@ public class ChapterWorker {
         Map<String, String> reviewPrompts = new HashMap<>();
         List<StageBlueprintEntity.ExitConditionResult> results =
                 stageExitReviewService.review(module, stageBlueprint, summaries, reviewPrompts);
-        // 二阶段：对未达成的条件用**正文**复核（2026-09-22）。
+        // 二阶段：对未达成的条件用**正文**复核。
         // 一阶段的核验文本是「摘要 + 三账本」，而摘要只记剧情主干、不记动作细节，
         // 会出现"正文写了、摘要没记、核验判未达成"的假阴性——用正文兜住，门槛不变（仍要求逐字原文）
         if (results != null) {
@@ -1282,14 +1282,14 @@ public class ChapterWorker {
                 .append("\n2. 无缝承接上一章结尾【上一章结尾原文·禁止重复】：上一章结尾原文仅用于衔接参考，严禁在本章正文中原样复述或大段重复（与上一章结尾文字重复不得超过30字）。本章第一段必须从上一章结束的时间点之后继续推进——如果上一章结尾是动作定格，本章开头写这个动作的后续结果而非重复动作本身；如果是悬念定格，本章开头写角色对悬念的反应而非重复悬念描述；如果是对话未答，本章开头写下一句对话而非重复上一句。禁止另起炉灶、禁止重复叙述上一章已写内容；人物状态、伤势、位置、持有物必须与角色账本及上一章结尾一致；人物所处位置、持有物与修为必须与【账本末态红线】（如有）一致，位置/持有物变化必须有过渡描写，严禁无过渡跳变；若上一章结尾是悬念/高潮定格，本章开头必须先接住这个定格再推进，但只能写后续不能复述定格本身。")
                 .append("\n3. 关键事件里的括号注释（如\"回收第N章埋设的XX\"）是给你看的执行提示——")
                 .append("必须把它转化为真实剧情来兑现该伏笔，严禁把方括号注释或其原文写进正文。");
-        // 认知边界（2026-09-22）：账本一直在记录"谁还不知道什么"，但从未进过正文 prompt。
+        // 认知边界：账本一直在记录"谁还不知道什么"，但从未进过正文 prompt。
         // 不编号——避免与表现层的 4-11 撞号
         if (contract != null && StringUtils.isNotBlank(contract.knowledgeBoundary())) {
             sb.append("\n【认知边界·不得越界】").append(contract.knowledgeBoundary())
                     .append("。本章任何角色不得表现出超出上述范围的认知——")
                     .append("不得把\"怀疑\"写成\"确认\"，不得让角色知道他尚未获知的信息。");
         }
-        // 能力—阶段一致性（2026-10-03，通用化）：此前的失控批次先出现"婴儿写数论证明、列乘法竖式"，
+        // 能力—阶段一致性通用化）：此前的失控批次先出现"婴儿写数论证明、列乘法竖式"，
         // 收紧后重跑又绕道为"涂鸦=答案/摆物=警告/大人附会解读"。规则按通用原则表述（不限题材与年龄），
         // 具体阶段以记忆前缀中的锚（【时序锚】）为准；时序锚可能因预算被裁，写作层红线不会。
         sb.append("\n【角色能力边界】若上方记忆含【时序锚】：主角本章的动作、语言、书写、专注时长与精细操作")

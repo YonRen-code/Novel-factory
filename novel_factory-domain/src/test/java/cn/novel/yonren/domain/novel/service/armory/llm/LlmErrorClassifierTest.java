@@ -101,7 +101,7 @@ class LlmErrorClassifierTest {
     @Test
     @DisplayName("供应商内部故障：500 / engine abort —— 换模型比原样重试更有效")
     void upstreamInternal() {
-        // 2026-09-30 实测报文：kimi-k3 思考 795s 后被上游掐断
+        // 实测报文：kimi-k3 思考 795s 后被上游掐断
         Kind engineAbort = LlmErrorClassifier.classify(withMessage(
                 "500 InternalError.Algo: engine abort, request=... model=kimi-k3"));
         assertEquals(Kind.UPSTREAM_INTERNAL, engineAbort);

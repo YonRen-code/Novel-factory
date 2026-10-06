@@ -519,7 +519,7 @@ class ChapterPlanPromptServiceTest {
         assertFalse(prompt.contains("【悬念推进锚】"));
     }
 
-    // ---- 导演通道（2026-09-30）：作者创作要点注入规划 prompt 顶部 ----
+    // ---- 导演通道：作者创作要点注入规划 prompt 顶部 ----
 
     @Test
     void buildPlanPrompt_creativeNotesInjectedAtTop() {
@@ -557,7 +557,7 @@ class ChapterPlanPromptServiceTest {
                 .build();
     }
 
-    // ==================== 章级主线推进注入块（2026-10-02） ====================
+    // ==================== 章级主线推进注入块 ====================
 
     /**
      * 注入块只渲染**本段用得到的章**：蓝图按 15 章窗产出，而一段通常只有 5 章——

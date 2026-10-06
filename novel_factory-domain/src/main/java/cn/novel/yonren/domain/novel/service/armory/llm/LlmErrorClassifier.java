@@ -111,7 +111,7 @@ public final class LlmErrorClassifier {
             // 请求非法
             new Rule(Kind.INVALID_REQUEST, "invalid_request_error", "invalidparameter", "invalid_parameter",
                     "invalid_value", "invalid value", "unsupported value"),
-            // 供应商侧内部故障（2026-09-30 补）：思考模型跑久了上游会直接 abort，
+            // 供应商侧内部故障 补）：思考模型跑久了上游会直接 abort，
             // 回报 500 InternalError.Algo / engine abort / 引擎异常 —— 这类错误**换模型有效**
             //（同一份请求换一个供应商端点重跑通常就过了），而原样重试同一模型大概率再撞一次。
             // 实测：kimi-k3 跑卷蓝图 795s 后报 500 engine abort，若不归此类则落到 UNKNOWN

@@ -419,7 +419,7 @@ public class ConsistencyIndexService {
     private void append(StringBuilder sb, String title, List<?> values) {
         if (values == null || values.isEmpty()) return;
         // 只渲染最近的 MAX_RENDER_ENTRIES 条：list 按章节序累积，此前 limit 取头部会
-        // 永远停在开篇旧事实上（2026-10-01 实测 22 条 timeline 只渲染了第 1-20 条）
+        // 永远停在开篇旧事实上 实测 22 条 timeline 只渲染了第 1-20 条）
         List<?> recent = values.size() > MAX_RENDER_ENTRIES
                 ? values.subList(values.size() - MAX_RENDER_ENTRIES, values.size()) : values;
         sb.append(title).append("：");
@@ -478,7 +478,7 @@ public class ConsistencyIndexService {
                 case "INJURY" -> injuries.put(fact.getSubject() + "#" + nullToBlank(fact.getScope()), new ConsistencyIndexEntity.InjuryEntry(fact.getSubject(), fact.getScope(), injurySeverity(nullToBlank(fact.getValue())), chapterNo, fact.getValue(), fact.getEvidence()));
                 case "TERM" -> index.getTerms().add(new ConsistencyIndexEntity.TermEntry(fact.getSubject(), blank(fact.getValue()) ? List.of() : List.of(fact.getValue()), chapterNo));
                 case "NUMBER" -> index.getNumbers().add(new ConsistencyIndexEntity.NumberEntry(fact.getSubject(), fact.getValue(), chapterNo, fact.getScope()));
-                // 人际关系（2026-09-16 新增）：此前关系变化只存于 characterBeats 的自由文本，
+                // 人际关系 新增）：此前关系变化只存于 characterBeats 的自由文本，
                 // 是唯一"不可机械核验"的主要维度；RELATION 事实让它进入与伤情/术语同一套证据链
                 case "RELATION" -> upsertRelation(index, fact.getSubject(), fact.getValue(), chapterNo, fact.getEvidence());
                 default -> { }

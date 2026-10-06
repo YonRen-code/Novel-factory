@@ -135,7 +135,7 @@ public final class ChapterPlanChecks {
         }
         List<String> issues = new ArrayList<>();
         // 描述去重**不依赖档位表**，所以放在 usable 判断之外——无蓝图模式同样要拦
-        //（2026-10-01：实测第 11–15 章五章回填的 suspenseBeat 逐字相同，而下标比较报一次后就沉默了）
+        //：实测第 11–15 章五章回填的 suspenseBeat 逐字相同，而下标比较报一次后就沉默了）
         issues.addAll(SuspenseLadderPolicy.duplicateBeatViolations(beats));
         if (SuspenseLadderPolicy.usable(ladder)) {
             issues.addAll(SuspenseLadderPolicy.violations(beats, ladder));
@@ -197,7 +197,7 @@ public final class ChapterPlanChecks {
         return null;
     }
 
-    // ==================== 章级主线推进校验（2026-10-02） ====================
+    // ==================== 章级主线推进校验 ====================
 
     /**
      * **章级主线推进校验**：段计划必须逐字落地阶段蓝图给出的 {@code mainLineByChapter}，

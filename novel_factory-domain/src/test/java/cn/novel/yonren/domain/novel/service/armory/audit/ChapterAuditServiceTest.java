@@ -73,7 +73,7 @@ class ChapterAuditServiceTest {
 
     @Test
     void prompt_injectsAbilityBoundaryCriterionOnlyWhenTimeAnchorPresent() {
-        // 2026-10-03：机械层测不了"阶段越界的能力展示"。时序锚由 guard 带入，
+        // 机械层测不了"阶段越界的能力展示"。时序锚由 guard 带入，
         // 有时序锚才要求审校查阶段越界；无锚时不输出，避免让模型去猜一个不存在的锚。
         ChapterPlanItemEntity item = ChapterPlanItemEntity.builder().chapterNo(26).title("标题").goal("目标")
                 .keyEvents(List.of("事件")).build();
@@ -82,7 +82,7 @@ class ChapterAuditServiceTest {
                 "【时序锚】陆瑾瑜年龄：十一个月（第16章摘要记录）。");
         assertTrue(with.contains("能力与阶段边界"), "有时序锚时必须要求审校查阶段越界");
         assertTrue(with.contains("认知超前"), "必须写明认知超前不算越界（是否允许由设定决定）");
-        // 2026-10-03 二轮收紧：重跑版把"直接写字"绕道成"涂鸦=答案/摆物=警告/观察者附会"，
+        // 二轮收紧：重跑版把"直接写字"绕道成"涂鸦=答案/摆物=警告/观察者附会"，
         // 判据必须点名这两类间接展示变体，否则审校抓不住
         assertTrue(with.contains("间接展示变体"), "必须点名间接展示变体按事实矛盾处理");
         assertTrue(with.contains("可被他人在事后解读出具体含义"), "必须禁止可解读载体的信息传递");

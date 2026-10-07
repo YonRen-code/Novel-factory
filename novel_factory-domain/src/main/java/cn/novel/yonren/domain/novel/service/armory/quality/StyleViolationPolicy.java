@@ -9,41 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * 机械文风门禁：纯代码扫描单章正文的 AI 味违规（零 LLM 调用）。
- * 词表与 StyleStatService 共用 {@link FatiguePatternCatalog}。
- *
- * <p><b>严重度分层（2026-09-16 依 162 章实测改造）</b>：本类曾把 5 项检查一律标为 BLOCKING，
- * 与审校 rubric（明示「文风与疲劳词」属 MINOR）自相矛盾，并造成 severity 通胀——
- * 实测 162 章数据里本类产出 53 条 BLOCKING，占全部 BLOCKING 债的 37.6%，
- * 其中 <b>人工逐条核验后 0 条成立</b>：
- * <ul>
- *   <li>万能副词密度 41 条：9 条实测/阈值 ≤1.1×，最低仅超 <b>0.014 次/千字</b>；
- *       中位 3.92 而阈值 3.0 —— 阈值标定低于该模型的常态写作水位，属标定问题不是缺陷信号</li>
- *   <li>章末升华 5 条：5/5 误判——词表含「正是/这一刻/这一切」等<em>叙述高频词</em>
- *       （「意识体在这一刻溃散」是时间状语），且判定式用 OR 导致「无对白」段几乎逢报必中</li>
- *   <li>眼神套话 6 条：4/6 恰为 2 次（阈值即 2），且多为<em>不同词各 1 次</em>合计成 2</li>
- *   <li>章节编号元信息 1 条：误判——「第一章」出现在<em>对白内</em>（「这就是《模块化功法导论》的第一章」）</li>
- * </ul>
- *
- * <p><b>分档原则</b>：BLOCKING 的语义是「必须定向修订」，故只授予同时满足
- * ① 损伤不可逆/累积、② 定向修订可收敛 的项。阈值型统计指标（密度、计数）在整章重写下
- * 相当于重投骰子，<em>不可收敛</em>——实测 110 条修订样本全部两轮耗尽，其中 50 条带副词密度残留。
- * 故：
- * <ul>
- *   <li>{@link #SEVERITY_BLOCKING} 仅保留「章节编号元信息泄露」（真泄漏即读者出戏的硬伤，
- *       且是精确串、可定点清除）</li>
- *   <li>其余 4 项降为 {@link #SEVERITY_MINOR}：只记录 + 回灌规划层治本，不触发修订
- *       （与「字数不足不拒收、改走密度信号回灌」同款处理）</li>
- * </ul>
- *
- * <p>判定规则（阈值即 rules/fatigue-patterns.txt 头注释语义）：
- * 1. 万能副词密度：全章命中次数 > 5 次/千字（按有效字符计）
- * 2. 眼神套话：全章合计命中 >= 3 次
- * 3. 身体反应套话复读：同一词条全章命中 >= 2 次
- * 4. 章末升华：最后一段包含升华词 且 既无动作动词 又无对话
- * 5. 章节编号元信息泄露：<em>叙述文本</em>中出现"第X章""本章/上一章"等作者层面元信息
- */
 public final class StyleViolationPolicy {
 
     /** 修订触发档：只有本档进入修订闭环 */
@@ -51,16 +16,8 @@ public final class StyleViolationPolicy {
     /** 记录档：落质量债/供观测统计与规划层回灌，不触发修订也不触发候选选优 */
     public static final String SEVERITY_MINOR = "MINOR";
 
-    /**
-     * 万能副词密度上限：次/千字有效字符。
-     * 由 3.0 上调至 5.0——实测 41 条命中里中位 3.92、p90 5.07，阈值 3.0 拦到的是
-     * 该模型的<em>常态水位</em>而非异常（最低一条仅超 0.014）。5.0 只拦显著超标。
-     */
     public static final double ADVERB_MAX_PER_1000_CHARS = 5.0;
-    /**
-     * 眼神套话全章合计次数上限（达到该值即违规）。
-     * 由 2 上调至 3——实测 6 条命中里 4 条恰为 2 次，且多为不同词各 1 次合计成 2。
-     */
+
     public static final int EYE_CLICHE_MAX_OCCURRENCES = 3;
     /** 身体反应套话同一词条全章次数上限（达到该值即违规） */
     public static final int BODY_CLICHE_SAME_WORD_MAX = 2;
@@ -71,12 +28,6 @@ public final class StyleViolationPolicy {
     private static final java.util.regex.Pattern CHAPTER_REF_PATTERN =
             java.util.regex.Pattern.compile("第[\\d一二三四五六七八九十百千零〇两]+章|本章|上一章|下一章|前一章|后一章|此章");
 
-    /**
-     * 章末升华总结性词汇表。
-     * <p>2026-09-16 剔除「正是/这一刻/这一切/原来如此/便是/终于/终究/注定」——
-     * 这些是<em>叙述高频词</em>：「正在这一刻溃散」是时间状语、「正是X」是指认用法、
-     * 「注视着这一切」的「这一切」是代词宾语，把它们当升华信号必然误判（实测 4/5 由此误报）。
-     */
     private static final String[] ELEVATION_KEYWORDS = {
             "从此", "这就是", "归根结底", "总而言之",
             "他明白了", "她明白了", "他知道了", "她知道了",
@@ -166,17 +117,6 @@ public final class StyleViolationPolicy {
         return issues;
     }
 
-    /**
-     * 章末升华检测：取正文最后一个非空段落，若包含升华词且长度达标，
-     * 且<em>既</em>缺乏动作动词<em>又</em>无对话，则判定为章末升华。
-     *
-     * <p><b>判定式由 OR 改为 AND（2026-09-16）</b>：原实现是「无动作 <em>或</em> 无对白」，
-     * 于是任何「无对白」的章末段只要含一个升华词就命中——而章末无对白在小说里极常见，
-     * 实测第 110 章以对白收尾（有中文引号）仍被判升华，正是该 OR 所致。
-     * 「旁白总结」的严格定义应是<em>既无动作也无对白</em>（人话：只说不做、且不是台词）。
-     *
-     * 返回最后一段的前80字作为 evidence，未命中返回 null。
-     */
     private static String checkEndingElevation(String content) {
         String[] paragraphs = content.split("\\n+");
         // 从后往前找第一个长度达标的非空段落
@@ -225,16 +165,6 @@ public final class StyleViolationPolicy {
         return null;
     }
 
-    /**
-     * 章节编号元信息泄露检测：扫描正文章节中是否出现"第X章""本章/上一章"等作者层面的元信息。
-     *
-     * <p><b>只在叙述文本中判定（2026-09-16 加）</b>：命中点若落在成对引号内即豁免——
-     * 「作者层面的元信息」只可能出现在叙述里，<em>不可能是角色台词</em>：角色说
-     * 「这就是《模块化功法导论》的第一章」指的是书里的章节，与本书的章节编号无关
-     * （实测第 39 章即此例，占该检查全部命中的 1/1）。这是判据口径修正，不是放水。
-     *
-     * 返回命中清单（如"第12章×2、本章×1"），未命中返回 null。
-     */
     public static String checkChapterReference(String content) {
         if (content == null || content.isBlank()) {
             return null;
@@ -273,11 +203,6 @@ public final class StyleViolationPolicy {
         return quotes % 2 == 1;
     }
 
-    /**
-     * 快速检测正文是否包含章节编号元信息（用于 QualityGate 审校前加审预警，不产出 issue）。
-     * 与 {@link #checkChapterReference} 同口径：引号内（对白）命中不算，否则预警与 issue 会互相打架。
-     * @return true 表示叙述中存在章节编号，false 表示干净
-     */
     public static boolean hasChapterReference(String content) {
         if (StringUtils.isBlank(content)) return false;
         java.util.regex.Matcher m = CHAPTER_REF_PATTERN.matcher(content);
@@ -289,11 +214,6 @@ public final class StyleViolationPolicy {
         return false;
     }
 
-    /**
-     * 渲染章节编号加审预警文本（注入 auditGuard，让审校 LLM 特别关注并定向替换）。
-     * @param evidence checkChapterReference 返回的命中清单
-     * @return 预警文本，未命中返回 null
-     */
     public static String renderChapterRefAuditHint(String evidence) {
         if (evidence == null) return null;
         return "【章节编号元信息泄露·加审预警】正文检测到作者层面的章节指代（" + evidence

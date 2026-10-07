@@ -54,18 +54,6 @@ public class QualityGate {
         return storyProperties != null && storyProperties.getAudit().isEnabled();
     }
 
-    /**
-     * 审校 → 修订（若启用）→ 修订稿复审的闭环自愈链（四期）：生成正文后、风格统计合并前调用。
-     * 首审发现 BLOCKING 且修订启用时，逐轮"修订 → 采纳闸门 → 复审"，复审干净即闭环；
-     * 轮次（story.revise.max-attempts）耗尽仍未闭环时，把最终 BLOCKING 记为质量债并落失败样本。
-     * 审校/复审硬失败照旧抛 AppException 终止本批；修订调用异常保留审校结论（不重试省 token）。
-     * 六期扩展：伏笔保密边界（禁泄关键词机械兜底 + 审校判变相泄露）、大纲偏离检测
-     * （关键事件覆盖率过低时给审校注入加审预警），并通过 GateResult 暴露通过质量分级
-     * （低置信通过供候选选优触发、CLEAN_PASS 供文风指纹库入库）。
-     * 七期扩展：内容密度检测（有效对话句数<25时给审校注入加审预警，WARN 语义不直接 BLOCKING）。
-     *
-     * @return 质量门结论：未修复 BLOCKING 清单 + 通过质量分级 + MINOR 残留/修订轮次
-     */
     public GateResult auditAndReviseIfEnabled(ArmoryCommandEntity requestParameter,
                                               ChapterPlanItemEntity item,
                                               ChapterContentEntity chapterContent,
@@ -73,10 +61,6 @@ public class QualityGate {
                                               StyleStatEntity styleStat,
                                               int globalNo,
                                               Path storyDir) {
-        // 段落结构兜底：写手偶尔把整章当成单个字符串吐出（实测 4/10 章换行数为 0，
-        // 单章 3000~4600 字挤成一段）。必须在任何按行统计之前重排，否则对白行占比会被误算为 1.0
-        // （ratioOf = 含引号行/非空行，整章仅 1 行且含引号 ⇒ 恒 1.0），段落密度审校也无从下手。
-        // 重排是纯机械动作、不改一个字；异常信号另行记 MINOR 回灌规划层。
         List<ChapterIssueEntity> structureIssues = List.of();
         if (chapterContent != null) {
             String raw = chapterContent.getContent();
@@ -97,11 +81,6 @@ public class QualityGate {
             log.warn("第 {} 章未达到 1500 字参考线，实际有效字数 {}（不阻塞，密度信号将回灌规划层）", globalNo,
                     ChapterLengthPolicy.effectiveCharacterCount(chapterContent.getContent()));
         }
-        // 上沿同口径告警：字数超标不是"写得多"，而是**关键事件数没变、水变多了**——
-        // 实测第 20 章 4170 字 / 5 个关键事件，对照第 19 章 2205 字 / 5 个关键事件。
-        // 与下沿一样只告警不阻塞，信号回灌规划层（见 ChapterPlanPromptService 的注水反馈）。
-        // 刻意**不豁免过渡章**：下沿豁免过渡章是因为它本就该短；写得比常规章还长的过渡章
-        // 恰恰是最典型的注水形态。
         if (chapterContent != null && ChapterLengthPolicy.exceedsReference(chapterContent.getContent())) {
             log.warn("第 {} 章超出 {} 字参考上沿，实际有效字数 {}（不阻塞，注水信号将回灌规划层）", globalNo,
                     ChapterLengthPolicy.MAXIMUM_REFERENCE_CHARACTERS,

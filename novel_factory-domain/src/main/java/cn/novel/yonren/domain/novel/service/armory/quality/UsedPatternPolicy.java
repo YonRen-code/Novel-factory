@@ -11,29 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-/**
- * 已用情节模式判据（2026-09-29）：把"最近 N 章在什么舞台、什么章型、发生了什么事"做成
- * <b>可机械比对的模式指纹</b>，回灌给<b>规划层</b>在编排那一刻避开重复。
- *
- * <p><b>为什么要有它</b>：正文层原本已有一份"已用情节模式黑名单"，但它在四个维度上被削弱——
- * <ol>
- *   <li><b>只在正文层注入</b>：而重复的源头在规划层（规划决定舞台与事件，正文只是照办）；</li>
- *   <li><b>内容复述而非模式抽象</b>：原实现产出的是"最近 5 章摘要前 80 字 + 首个节拍 goal→结果"，
- *       模型读到"第 12 章：解决五金铺经营危机"并不会推断出"别再拿五金铺当舞台"；</li>
- *   <li><b>窗口只有 5 章</b>：更早的套路早已滑出窗口；</li>
- *   <li><b>且自第 12 章起被前缀预算守门每章丢弃</b>（实测第 12–16 章连续被丢弃）。</li>
- * </ol>
- *
- * <p><b>本类做什么</b>：在内容复述之上补一层<b>指纹统计</b>——按（舞台 × 章型）聚合最近 N 章，
- * 对达到重复阈值的组合<b>点名</b>。它不理解剧情，只做机械计数并说清"哪个舞台用了多少次"，
- * 与 {@link PlaceTrajectoryPolicy}、{@link ChapterTitlePolicy} 同属
- * "把现状摆到规划层面前"的范式（观测不到就不会被修）。
- *
- * <p><b>刻意不把 suspenseBeat 纳入指纹</b>：档位表是按阶段各自生成的，档位号跨阶段不可比，
- * 混进指纹会得出无意义的组合。悬念推进由 {@link SuspenseLadderPolicy} 单独负责，两者不重叠。
- *
- * <p>本类只产<b>建议与警示</b>（WARN 语义），不进任何 BLOCKING 闸门。
- */
+
 public final class UsedPatternPolicy {
 
     /** 正文层沿用最近 5 章（与原黑名单窗口一致，保持行为可比、便于对照） */
@@ -54,13 +32,7 @@ public final class UsedPatternPolicy {
     /** 内容复述部分单章摘要的截断长度 */
     private static final int SUMMARY_EXCERPT = 80;
 
-    /**
-     * 冲突动词表：角色节拍的 goal/decision 命中任一，即计该角色"在本章发起冲突"。
-     *
-     * <p>用结构化标签而不是文本相似度，是因为实测后者的区分力不足（见 {@link #render} 中的说明）。
-     * 词表刻意保持小而通用，覆盖"制造麻烦"这一族动作；若日后要按题材扩展，
-     * 可照 {@code FatiguePatternCatalog} 的做法外置为 rules 文件。
-     */
+
     private static final String[] CONFLICT_MARKERS = {
             "抢", "夺", "报复", "揭穿", "打", "骂", "逼", "威胁", "骗", "偷", "拦", "堵",
             "施压", "催促", "栽赃", "恐吓", "争执", "刁难", "挤兑", "挑衅", "找茬"};
@@ -135,12 +107,6 @@ public final class UsedPatternPolicy {
             }
         }
 
-        // 三、角色冲突发起频次 补）
-        // ⚠️ 刻意**不用文本相似度**判定套路重复——这是实测换来的结论：同一个套路
-        //（"抢夺 → 被物证揭穿 → 长辈介入 → 逃离"）在三次出现时的节拍文本，两两 3-gram Jaccard
-        // ≤0.09（胖墩第 3 章 vs 第 19 章仅 0.02）。套路是**抽象结构**的重复，措辞每次不同，
-        // 相似度路线没有区分力（试过并放弃）。故改用"角色 + 冲突动词"这种结构化标签：
-        // 它抓的不是措辞，而是"谁在反复制造麻烦"。
         Map<String, List<ChapterSummaryEntity>> conflictByRole = new LinkedHashMap<>();
         Map<String, String> sampleByRole = new LinkedHashMap<>();
         for (ChapterSummaryEntity s : window) {

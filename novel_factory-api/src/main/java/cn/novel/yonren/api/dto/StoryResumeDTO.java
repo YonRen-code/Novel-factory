@@ -5,16 +5,7 @@ import lombok.Data;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 续写准备信息：把某个已有故事恢复到"可以接着上次的末尾往下写"的状态。
- *
- * <p>存在的理由：续写要走和首发完全相同的入参校验（{@code ValidateUserInputNode} 对 11 个字段全非空），
- * 而这些设定在服务端唯一被持久化下来的地方就是 {@code story-bible.txt}（story-meta 只存总章数）。
- * 有了本端点，前端只要让用户挑一个已有故事，就能把整套设定取回来，而不必让人肉记住并重填。
- *
- * <p>{@link #setting} <b>刻意复用提交体 {@link StoryGenerateRequestDTO} 的形状</b>——它就是要回填到生成表单
- * 并原样提交的东西。复用同一类型而不是另建一个平行 DTO，是为了不让"表单字段"与"续写字段"两份定义各自漂移。
- */
+
 @Data
 public class StoryResumeDTO {
 

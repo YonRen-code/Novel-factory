@@ -22,13 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Embedding 网关的 Spring AI 适配实现：与聊天网关（SpringAiLlmGateway）同构——
- * 按 baseUrl|apiKey|model 缓存单例模型客户端，供应商细节收敛于此。
- * 失败语义（配合消费方快速失败终止作业）：限流/5xx/网络 IO 等瞬时失败做有界重试（默认 3 次，1s 起线性退避），
- * 耗尽后原样上抛；4xx 确定性拒绝（欠费/鉴权/参数）不浪费重试直接上抛。
- * 不做 usage 记账（embedding 量级小且计费按 token 极低），异常向上抛由编排层终止。
- */
+
 @Component
 public class SpringAiEmbeddingGateway implements EmbeddingGateway {
 
@@ -37,13 +31,6 @@ public class SpringAiEmbeddingGateway implements EmbeddingGateway {
     /** 瞬时失败重试退避基数：第 n 次失败后等待 n * 1s 再试（1s、2s） */
     private static final long RETRY_BACKOFF_MS = 1000L;
 
-    /** 单条向量化输入安全字符上限：仅截断 embedding 输入，调用方落库的 payload 原文不受影响。
-     * 2026-09-25 按 text-embedding-v4 重校：单条上限 **16000 tokens**（实测 12000 字符
-     * = 10726 tokens 通过，20000 字符 ≈ 17800 tokens 被拒 400 InvalidParameter）。
-     * 8000 字符 ≈ 7150 tokens，余量 2.2 倍——比前一模型（qwen3.7-flash 实测 >10 万字符可过）紧得多，
-     * 但仍远高于管线实际最大输入（章节记忆实测最长 976 字符/平均 421），保留防呆意义。
-     * 历史：智谱 embedding-3 单条约 3072 tokens（实测 4294 字符被拒）→ 2000 字符；
-     * qwen3.7-flash >10 万字符 → 8000；v4 16000 tokens → 8000 仍安全。换模型务必重校此值 */
     static final int MAX_EMBED_INPUT_CHARS = 8000;
     private final ConcurrentHashMap<String, OpenAiEmbeddingModel> modelCache = new ConcurrentHashMap<>();
 
@@ -67,9 +54,6 @@ public class SpringAiEmbeddingGateway implements EmbeddingGateway {
         }
         OpenAiEmbeddingModel model = embeddingModel(module);
         List<String> capped = capInputLength(texts);
-        // 分批：供应商对**单次请求的条数**另有上限——实测 text-embedding-v3 为 10，
-        // 一次发 390 条会被直接拒（400 batch size is invalid），而参考资料索引是**硬依赖**（失败即终止作业）。
-        // 分批对调用方完全透明：返回顺序与入参一一对应。
         int batchSize = resolveBatchSize(module);
         List<float[]> vectors = new ArrayList<>(capped.size());
         for (int start = 0; start < capped.size(); start += batchSize) {
@@ -92,8 +76,6 @@ public class SpringAiEmbeddingGateway implements EmbeddingGateway {
         return configured == null || configured <= 0 ? DEFAULT_EMBED_BATCH_SIZE : configured;
     }
 
-    /** 逐条截断超限输入：供应商按单条 token 数设限，任一超限即整批拒绝（400-1210），
-     *  故事 bible/参考资料大段落随章节增长可越过该上限 */
     private static List<String> capInputLength(List<String> texts) {
         List<String> capped = new ArrayList<>(texts.size());
         for (String text : texts) {
@@ -103,11 +85,6 @@ public class SpringAiEmbeddingGateway implements EmbeddingGateway {
         return capped;
     }
 
-    /**
-     * 瞬时失败有界重试：仅 {@link TransientAiException}（限流/5xx）与 {@link ResourceAccessException}
-     * （连接超时/重置等网络 IO）触发退避重试；确定性失败（4xx 参数/鉴权/欠费）与重试耗尽后
-     * 原样上抛，由消费方快速失败终止作业
-     */
     private EmbeddingResponse callWithRetry(OpenAiEmbeddingModel model, StoryVO.Module module, List<String> texts) {
         RuntimeException last = null;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {

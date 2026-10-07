@@ -10,23 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 场景级模型降级链：把「主模型失败就整批终止」变成「按序换模型再试一次」。
- *
- * <p><b>为什么换模型有效</b>：实测百炼（DashScope）的免费额度<em>按模型 endpoint 分别计量</em>——
- * 快照名 {@code deepseek-v4-pro-0813} 37/37 成功，而裸别名 {@code deepseek-v4-pro} 报
- * {@code AllocationQuota.FreeTierOnly}。所以"主模型没额度"不等于"账号没额度"，
- * 换一个仍有额度的同族模型即可继续，这比整批终止便宜得多。
- *
- * <p><b>链的构成</b>：场景主模型 → 该场景 {@code model-fallbacks} 条目 → {@code default} 条目。
- * 备选模型只替换<em>模型名</em>，其余参数（maxTokens / temperature / enableThinking /
- * baseUrl / apiKey / completionsPath）全部沿用主模型——降级只应改变"用哪个模型"，
- * 顺带改温度或端点会让副作用不可解释。
- *
- * <p>本类只负责<b>构链</b>（纯函数，可单测）；是否真的换下一个由网关的分流判据决定
- * （见 {@code SpringAiLlmGateway#shouldFallback}，2026-09-30 起口径为"除内容审计外一律换模型"）——
- * 错误类型不对就立刻上抛，不做无谓尝试（每次尝试都是一次真金白银的调用）。
- */
+
 public final class ModelFallbackChain {
 
     /** 全局兜底键：任何场景的链尾部都会并入该键下的模型 */

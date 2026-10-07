@@ -148,12 +148,6 @@ public class ChapterSummaryService {
         }
     }
 
-    /**
-     * 容错解析：模型（尤其关闭思考模式后）常把 foreshadowingNew 从字符串数组误输出成对象数组
-     * （{content,excerpt,importance}，即 foreshadowSeeds 的结构），导致 Jackson 反序列化失败。
-     * 此处先尝试把 foreshadowingNew 数组内每个对象元素的 content 字段提出、重建为字符串数组，再整体解析。
-     * 若字段本身已是字符串数组或整体非对象结构则原样返回 null（由调用方走后续降级），绝不破坏成功路径。
-     */
     private ChapterSummaryEntity tryConvertWithForeshadowFix(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;

@@ -8,18 +8,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 对白判据（机械、零 LLM 成本）：从两个维度度量"角色互动是否够"。
- *
- * <p><b>为什么是两维</b>（2026-09-23）：行级占比只回答"引号行占比多少"，会漏掉一种典型失手——
- * 占比合格但**轮次稀疏**（几段长对白凑比例）。都市校园恋爱那本实测行级占比 25%（勉强合格），
- * 而轮次密度只有 7.4/千字（同批其他新书 10.0-10.9，全样本中位 9.5），读者反馈"对话太少、
- * 张力不足"——占比抓不到，密度能抓到。恋爱/智斗的拉扯感来自一来一回的**次数**，不是单段长度。
- *
- * <p><b>阈值标定</b>（388 章实测，2026-09-23）：全样本轮次密度 均值 9.9／中位 9.5／p10 4.3；
- * 玄幻两本 13.3 与 6.9（题材内部差异大）；都市恋爱那本 7.4。行级占比：旧书 45.6%（p10 27.9%）、
- * 独白坍缩本 11%。对话驱动题材（ROMANCE）要得更严：密度 OK ≥ 10.0 / DEGRADED < 8.0。
- */
+
 public final class DialogueRatioPolicy {
 
     // ---------- 行级占比（全局线：实测两题材几乎无差异，不为题材感知而硬套） ----------
@@ -111,15 +100,6 @@ public final class DialogueRatioPolicy {
     /** 判坍缩的最小篇幅：更短的正文样本太小，宁可漏报不误伤 */
     private static final int FORMAT_COLLAPSE_MIN_CHARS = 800;
 
-    /**
-     * 对白格式坍缩检测（机械，P1，2026-09-29 阅读实测后新增）：有篇幅的正文却<b>零对白引号</b>——
-     * 读者无法区分叙述与角色发言。典型成因是写手把生成 prompt 的"纯文本禁令"过度泛化到对白
-     * （禁令原文只针对 Markdown 与章节编号等元信息，对白引号是显式豁免项）。
-     *
-     * <p>触发条件从严（宁漏勿滥）：非 transition 章、篇幅 ≥ {@value #FORMAT_COLLAPSE_MIN_CHARS} 字、
-     * 引号行占比与轮次<b>双双为零</b>才判——出现任何一处引号都算写作选择而非格式坍缩。
-     * MINOR 落债回灌（不进修订：根因已在生成 prompt 侧修复，为补引号整章重写不成比例）。
-     */
     public static List<ChapterIssueEntity> checkFormatCollapse(String content, String chapterTypeCode) {
         if (StringUtils.isBlank(content) || content.length() < FORMAT_COLLAPSE_MIN_CHARS) {
             return List.of();
@@ -153,24 +133,6 @@ public final class DialogueRatioPolicy {
             "你", "我", "他", "她", "咱", "们", "吧", "呢", "吗", "啊", "呀", "了", "不", "么",
             "什么", "怎么", "为什", "走", "来", "去", "好", "行", "是", "别", "要", "能", "会"};
 
-    /**
-     * 「括号包对话」检测（机械，P1，2026-10-01 新增）：角色台词被写成 {@code （……）} 而不是「……」。
-     *
-     * <p><b>为什么单独判</b>：这类写法不会被 {@link #checkFormatCollapse} 抓到——文里确实有引号
-     * （叙述里的引用、书名号等），只是**台词本身**没用引号；而它的危害是双重的：
-     * <ol>
-     *   <li>{@link #utteranceCount} 与 {@link #ratioOf} 都不计入被括号包裹的句子 ⇒
-     *       「对白行占比」「轮次密度」**双双虚高**，把对话坍缩伪装成达标；</li>
-     *   <li>读者无法区分角色发言与旁白，{@code （} 在中文习惯里是**旁注/舞台提示**，用它当引号是硬伤。</li>
-     * </ol>
-     *
-     * <p>判据从严（宁漏勿滥）：<b>整行</b>是括号起止、长度 6~80 字、且含语气/人称线索；
-     * 命中 {@value #BRACKET_DIALOGUE_MIN_LINES} 行以上才报。单独的 {@code （此时天还没亮）}
-     * 这类旁注不会命中——它不含人称语气词，长度也常在 6 字以下。
-     *
-     * <p>MINOR 落债回灌，不进修订：这是格式口径问题，整章重写不成比例；
-     * 且改法机械（括号换「」），由下一章的规则注入自然收敛。
-     */
     public static List<ChapterIssueEntity> checkBracketDialogue(String content, String chapterTypeCode) {
         if (StringUtils.isBlank(content) || content.length() < BRACKET_DIALOGUE_MIN_CHARS) {
             return List.of();

@@ -17,15 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 章节计划的机械规则唯一归宿：编号校正、结构校验、主线推进闸门。
- *
- * <p>此前这些逻辑分散在 ValidateChapterPlanNode / ParseChapterPlanNode /
- * BuildChapterPlanPromptNode 的静态方法里，ChapterWorker 与 StoryJobService 以
- * "跨包静态调用"的方式借用——节点是流程编排位置，不该充当工具库。
- * 收敛到本类后，规划执行器（{@link ChapterPlanSegmentPlanner}）、树节点与作业层
- * 共用同一份实现，"两条路径两套判据"的口径分裂不再可能出现。
- */
+
 public final class ChapterPlanChecks {
 
     private ChapterPlanChecks() {
@@ -107,16 +99,6 @@ public final class ChapterPlanChecks {
         }
     }
 
-    /**
-     * **主线推进校验**：核对每章声明的 suspenseBeat 是否真的在往前走。
-     *
-     * <p>这是治"原地转圈"的**机械闸门**：文风劝导管不住，只有把悬念档位做成
-     * **有序枚举**并逐章比下标才拦得住。判据全部委托 {@link SuspenseLadderPolicy}
-     * （唯一实现：体检观测走同一份规则），本方法只负责把章计划映射成观测点。
-     *
-     * @param ladder 阶段蓝图给出的档位表；null 或少于 2 档时**跳过校验**（无蓝图模式/老故事）
-     * @return 违规描述（可能多条，供 prompt 回注重规划）；通过或跳过时返回 null
-     */
     public static String validateSuspenseAdvance(List<ChapterPlanItemEntity> chapters, List<String> ladder) {
         if (chapters == null || chapters.isEmpty()) {
             return null;
@@ -143,20 +125,6 @@ public final class ChapterPlanChecks {
         return issues.isEmpty() ? null : String.join("；", issues);
     }
 
-    /**
-     * 违规信息的**回注文本**：两条规划路径共用同一份措辞，
-     * 免得同一条规则在两处被描述成两个样子（模型会按字面理解，措辞不一致等于两套规则）。
-     *
-     * <p><b>2026-10-01 改为「强制细化」</b>：原文案只说"以下问题必须修正"+"请重新输出完整计划"，
-     * 而模型的反应是**原样重生成**——实测第 11–15 章重规划后 suspenseBeat 仍与首版逐字相同，
-     * 等于白烧一次调用。根因是反馈没告诉它**具体该怎么做**：
-     * <ol>
-     *   <li>逐字重复章位没有被点名（旧判据只比档位下标，报的是"第 N 章起主线原地"）；</li>
-     *   <li>没给出"档位表不够细时怎么办"的出路——档位表只有 3~6 档，要求相邻章必然不同会撞墙，
-     *       所以必须允许在档位之外补**本章独有**的推进子项，否则模型只能原地重复。</li>
-     * </ol>
-     * 新文案把这两点都写死：点名逐字重复、并显式授权"保留原档位表 + 补子项"这条出路。
-     */
     public static String suspenseFeedback(String issue) {
         return "\n\n【上一版计划被机械驳回】以下问题必须修正（其余部分可保留）：\n- " + issue
                 + "\n\n修正要求（逐条执行，**不得只换措辞**）："
@@ -199,29 +167,7 @@ public final class ChapterPlanChecks {
 
     // ==================== 章级主线推进校验 ====================
 
-    /**
-     * **章级主线推进校验**：段计划必须逐字落地阶段蓝图给出的 {@code mainLineByChapter}，
-     * 且相邻章不得雷同。
-     *
-     * <p><b>治的是什么</b>：{@code suspenseLadder} 只有 3-6 档，却要覆盖 5-80 章的阶段，
-     * 于是**多章共用同一档是常态**（实测第 11-15 章五章回填同一档位——不是模型偷懒，
-     * 是档位表本身没有能力区分它们）。档位序比较只能发现"连续 3 章原地"，
-     * 发现不了"两章写的是同一件事"。本校验补的就是这个横向维度。
-     *
-     * <p><b>与 2026-10-01 那次补丁的区别</b>：那次是要求模型**自愿**在 suspenseBeat 里附
-     * "本章推进子项"——生效了，但靠的是模型服从，不是结构保证。
-     * 本校验改成"**蓝图给内容、计划负责逐字落地**"，违规可机械判定、可驳回重规划。
-     *
-     * <p><b>三类违规</b>：
-     * <ol>
-     *   <li><b>未声明</b>——该章 {@code mainLineAdvance} 为空；</li>
-     *   <li><b>未落地</b>——所填内容与蓝图该章的推进不一致（归一化后既非相等也不互为包含）；</li>
-     *   <li><b>相邻雷同</b>——相邻两章内容归一化后相同。</li>
-     * </ol>
-     *
-     * @param planned 蓝图给出的章级推进（排期窗内）；null/空 时**跳过校验**（老数据/无蓝图模式）
-     * @return 违规描述（供回注重规划）；通过或跳过时返回 null
-     */
+
     public static String validateMainLineAdvance(List<ChapterPlanItemEntity> chapters,
                                                  List<StageBlueprintEntity.MainLineBeat> planned) {
         if (chapters == null || chapters.isEmpty() || planned == null || planned.isEmpty()) {
@@ -280,19 +226,7 @@ public final class ChapterPlanChecks {
         return value == null ? "" : (value.length() <= 30 ? value : value.substring(0, 30) + "…");
     }
 
-    /**
-     * 章级主线推进的**回注文本**（2026-10-02）。
-     *
-     * <p>与 {@link #suspenseFeedback} 同样的教训：反馈必须**点名具体章与具体内容**，否则模型只会
-     * 原样重生成一遍（主线推进校验当年就是"能发现问题但没有修复手段"）。
-     */
-    /**
-     * 时序锚 v2（2026-10-06）：每章必须声明 timeAdvance（本章时间推进额度）——
-     * 计划不声明，写手锚的时间锁就只剩"无推进额度"，阶段蓝图声明的 stageEnd 跳接永远无法执行
-     * （61-65 批实测：timeAdvance 全缺 → 跳至 2009 年的桥接落空，进度对齐滞后 7 段）。
-     *
-     * @return 违规描述（供回注重规划）；全部声明时返回 null
-     */
+
     public static String validateTimeAdvance(List<ChapterPlanItemEntity> chapters) {
         if (chapters == null || chapters.isEmpty()) {
             return null;

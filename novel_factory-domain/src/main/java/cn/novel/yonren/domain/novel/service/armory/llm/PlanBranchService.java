@@ -19,17 +19,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 批次计划分支推演（计划级选优）：同一规划 prompt 派生"稳健线/进取线"两个变体，各输出
- * 【方向建议】小 JSON（structure/direction/risks，几百 token，不会截断）；双稿均可解析时
- * 由第二模型族（chapter-judge 场景）对比择优，调用方按胜出方向再生成正式章节计划。
- * 任一稿失败回退另一稿，全败返回 null（调用方降级走单稿规划）。
- * 成本：每段 +2 次小方向调用 + 1 次评审调用，频率低（批/段边界才发生）。
- * story.plan.branches=1（默认）时整体关闭；评审 prompt 明令不评长短。
- * 所有规划路径（树内链式 / worker 惰性分段）统一经 ChapterPlanSegmentPlanner 走本服务，能力一致。
- * 分支调用前剥离规划 prompt 尾部的 chapters schema 指令块：该显式 schema 是最强格式信号，
- * 不剥离时模型必然无视"只输出方向"而输出完整章节计划
- */
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -105,21 +95,7 @@ public class PlanBranchService {
         return "B".equals(winner) ? rawB : rawA;
     }
 
-    /**
-     * 剥离规划 prompt 中**所有"规划专属"的格式/逐章指令**：显式 schema 是 prompt 中最强的格式信号，
-     * 带着它追加"只输出方向"等于给模型两个互相矛盾的输出指令，模型必然选 schema；
-     * 无标记时（如单测的简化 prompt）原样返回。
-     *
-     * <p><b>2026-10-02 修正</b>：原先只从 {@code PLAN_SCHEMA_MARKER} 截尾，但
-     * 「8.2 章级主线推进要求」与「【章级主线推进】块」都在 schema **之前**，因此会残留。
-     * 残留后果实测很直接——那一块是"第16章：… / 第17章：…"的**逐章清单**，
-     * 比 schema 更具体，模型于是交回**章节计划数组**而不是分支推演要的方向对象：
-     * 日志里 4 条 {@code BeanOutputConverter} 解析失败的原始输出正是带 mainLineAdvance 的章节计划。
-     *
-     * <p><b>为什么逐段精确删除、而不是"取最早标记一截了之"</b>：8.2 位于编号要求列表里，
-     * 若从它截尾，会连它之后的【悬念推进锚】【密度/伏笔/地点反馈】等**仍然有用的块**一起切掉，
-     * 反而削弱分支方向建议的信息量。故只精确移除这两段，其余原样保留。
-     */
+
     static String stripPlanSchema(String prompt) {
         if (prompt == null) {
             return null;

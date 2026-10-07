@@ -6,11 +6,7 @@ import lombok.Setter;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-/**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 异步资源加载策略
- * @create 2024-12-21 08:48
- */
+
 public abstract class AbstractMultiThreadStrategyRouter<T, D, R> implements StrategyMapper<T, D, R>, StrategyHandler<T, D, R> {
 
     @Getter

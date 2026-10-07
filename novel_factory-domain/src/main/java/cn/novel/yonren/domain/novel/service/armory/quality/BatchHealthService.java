@@ -19,20 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 批末体检服务：把阶段一~四建立的机械指标横着看一遍，输出可分级、可行动的
- * {@link BatchHealthReport}（纯函数，零 LLM 成本，可在任意时刻重算）。
- *
- * <p><b>阈值标定说明（重要）</b>：下表中的健康线/劣化线是依据
- * <em>2026-09-16 改造前的 162 章实测基线</em>标定的<strong>初值</strong>——
- * 改造后还没有跑过完整批次，因此这些线是"针对已知病态设定的判别线"，
- * 不是"理想水平"。第一批改造后数据出来必须重新校准（见 {@link #THRESHOLD_NOTE}）。
- * 标定时刻意把劣化线定在"明显比现状好"而不是"理想值"上：
- * 体检报告若第一次跑就全红，它就失去了区分力（与退出条件恒红的教训一致）。
- *
- * <p><b>不做</b>：不读 LLM 用量日志（成本属执行器/预算熔断范畴）、不做任何停机或降级动作
- *（动作属阶段六执行器）。本服务只回答"现在健不健康、该看哪儿"。
- */
+
 @Slf4j
 @Service
 public class BatchHealthService {
@@ -158,19 +145,7 @@ public class BatchHealthService {
         return assess(summaries, debts, blueprints, candidates, null);
     }
 
-    /**
-     * 体检入口（2026-10-02 增 settlements）。
-     *
-     * <p><b>为什么要传结算台账</b>：伏笔类指标必须与**账本同口径**。
-     * `stripVoidedForeshadows` 只清理 `foreshadowingNew`（账本读它），而
-     * `ForeshadowSpanPolicy` 读的是 `foreshadowSeeds`（**从未被清理**）——
-     * 若不把 `voidedContents` 传下去排除，弃置掉的长线会被当成"永远在途"，
-     * 把滞留中位数单调推高。同时本方法据此产出**静默兑现数**。
-     *
-     * @param settlements 卷末清账结算台账（可为 null——null 时伏笔类指标退化为"不排除弃置"，
-     *                    与引入本参数前行为一致）
-     * @param candidates  候选链路统计，可为 null
-     */
+
     public BatchHealthReport assess(List<ChapterSummaryEntity> summaries,
                                     List<QualityDebtEntity> debts,
                                     List<StageBlueprintEntity> blueprints,
@@ -235,17 +210,6 @@ public class BatchHealthService {
         return new BatchHealthReport(chapters.size(), metrics, overall, recommendations);
     }
 
-    /**
-     * 兜底模式占比 =（SCAFFOLDED + RECOVERY 章数）/ 有模式记录的章数（2026-09-22 新增）。
-     *
-     * <p>三模式的语义：FREE = 契约完整且节拍可用（节拍只作建议）；SCAFFOLDED = 契约完整但节拍不可用
-     * （用通用骨架兜底）；RECOVERY = 契约不完整（骨架 + 强约束）。
-     * 后两者是**兜底路径**——占比长期为 0 说明它们从未被真实走到（写了没验），
-     * 突然升高则说明计划质量或节拍生成在退化。**这是观察项，暂无历史基线。**
-     *
-     * <p>⚠️ 只统计**有模式记录**的章：老批次（该字段落盘前生成）视为无记录，不计入分母，
-     * 否则会凭空造出一个"兜底 0%"的假指标。
-     */
     private void addGenerationModeShare(List<BatchHealthReport.Metric> metrics,
                                         List<String> recommendations,
                                         List<ChapterSummaryEntity> chapters) {
@@ -277,13 +241,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 认知边界注入率 = 注入了认知边界的章数 / 有记录章数（2026-09-22 新增）。
-     *
-     * <p>正文 prompt 的【认知边界·不得越界】块来自**角色账本**里的认知类状态
-     * （"尚未确认无月的真实身份"这类）。注入率为 0 有两种可能：账本里根本没记录认知状态
-     * （上游摘要 prompt 的问题），或提取没生效——**两种都要有人管**，所以给个指标盯着。
-     */
     private void addKnowledgeBoundaryCoverage(List<BatchHealthReport.Metric> metrics,
                                               List<String> recommendations,
                                               List<ChapterSummaryEntity> chapters) {
@@ -314,20 +271,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 无检索唤醒章数占比 =（recallDegraded=true 的章数）/ 有该标记的章数（2026-09-29 新增）。
-     *
-     * <p>背景：跨章记忆检索失败已由"终止作业"改为"降级为空召回 + WARN"，但降级与"确实无命中"
-     * 返回的命中表**完全一样**（都是空表）——只在日志里留痕的话，"本批有几章是在无记忆前缀下裸跑的"
-     * 就只能靠人翻日志。故落进摘要机械标记，由本指标汇总；指标为 0 是**正常态**。
-     *
-     * <p>⚠️ **这是基础设施指标，不是正文质量指标**：一旦升高说明 embedding / 向量库 / 鉴权链路在抖动，
-     * 该去查链路而不是调阈值。**刻意不进质量债**——质量债会回灌给写手当作"你上章犯的错"，
-     * 把基础设施故障塞进去等于给模型下错误指令。
-     *
-     * <p>⚠️ 只统计**有该标记**的章：老批次（该字段落盘前生成）为 null，不计入分母，
-     * 否则会凭空造出一个"0% 降级"的假指标（与兜底模式占比同一处理）。
-     */
     private void addRecallDegradedShare(List<BatchHealthReport.Metric> metrics,
                                         List<String> recommendations,
                                         List<ChapterSummaryEntity> chapters) {
@@ -359,18 +302,7 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 修订验证未跑成占比 =（auditVerifyDegraded=true 的章数）/ 有该标记的章数（2026-09-30 新增）。
-     *
-     * <p>背景：复审验证化之后，"验证步骤本身失败"（网关异常/输出无法解析）原先被并入"未修复"，
-     * 于是一次抖动会被记成质量债，再回灌给写手当作"你上一章犯的错"——那是拿基础设施故障给模型下指令。
-     * 现在这类章不落债，但**必须能被看见**：只留日志就回到"从产出上几乎看不出来"的老问题。
-     *
-     * <p>⚠️ **这是基础设施指标，不是正文质量指标**：0 是正常态；升高说明审计链路在抖动，
-     * 该查链路而不是改判据。**刻意不进质量债**（与「无检索唤醒章数占比」同则）。
-     *
-     * <p>⚠️ 只统计有该标记的章：老批次为 null，不计入分母。
-     */
+
     private void addAuditVerifyDegradedShare(List<BatchHealthReport.Metric> metrics,
                                              List<String> recommendations,
                                              List<ChapterSummaryEntity> chapters) {
@@ -403,17 +335,7 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 超长章占比 =（有效字 &gt; 参考上沿的章数）/ 有 validChars 记录的章数（2026-09-29 新增）。     *
-     * <p>与「低密度章占比」是一对：下沿查"计划给的料太少"（产出偏薄），上沿查"关键事件没增加、
-     * 描写与对白被拉长"（注水）。实测第 20 章有效字 4170 / 5 个关键事件，对照第 19 章
-     * 2205 字 / 5 个关键事件——**字数翻倍而事件数不变**，只有这一项看得见（低密度指标全程没报）。
-     *
-     * <p>⚠️ **刻意不豁免过渡章**（与低密度指标相反）：下沿豁免过渡章是因为它本就该短；
-     * 写得比常规章还长的过渡章恰恰是最典型的注水形态（ch20 正是 transition 章）。
-     *
-     * <p>⚠️ 只统计有 validChars 记录的章：老批次该字段为 null，不计入分母，否则会造出"0% 注水"的假指标。
-     */
+
     private void addOversizedChapterShare(List<BatchHealthReport.Metric> metrics,
                                           List<String> recommendations,
                                           List<ChapterSummaryEntity> chapters) {
@@ -448,16 +370,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 正文复核改判占比 = 改判达成的条件数 /（改判数 + 复核后仍未达成数）（2026-09-22 新增）。
-     *
-     * <p>二阶段正文复核是补"摘要只说主干、不记动作细节"导致的假阴性——
-     * 一阶段用摘要核验判未达成，复核用**正文**再看一遍。
-     *
-     * <p>⚠️ 这个比例**越低越好**：它衡量的是**摘要粒度缺口有多大**，
-     * 而不是"复核救回了多少"（救回本身是好事，但它本不该发生）。
-     * 长期偏高应当去改摘要 prompt（要求原样记录关键动作细节），而不是靠复核兜。
-     */
     private void addRecheckRecoveredShare(List<BatchHealthReport.Metric> metrics,
                                           List<String> recommendations,
                                           List<StageBlueprintEntity> blueprints) {
@@ -501,21 +413,6 @@ public class BatchHealthService {
     /** 正文复核改判的留痕标记（与 StageExitReviewService 写入的 note 保持一致） */
     private static final String RECHECK_MARK = "正文复核通过";
 
-    /**
-     * **在途伏笔滞留中位数**（2026-10-02 新增）—— `foreshadowSpan` 的**互补指标**。
-     *
-     * <p><b>为什么必须有它</b>：`foreshadowSpan` 只统计**已回收**的伏笔，于是规划层按指令"养长线"
-     * （故意不立刻兑现）时那些伏笔不进分母，指标反而变差（实测 2.23 → 1.90 章）。
-     * **只统计闭环事件的指标会惩罚正确的修复**，本指标看的是另一半：长线有没有真的在养。
-     *
-     * <p><b>两个必须一起看</b>：滞留久既可能是"有意养的长线"，也可能是"被遗忘的线"。
-     * 实测 31 条在途里混着两类（ch15「蓝皮书夹层那张纸，来源未明」vs ch3「鸿运科技」12 章没动）。
-     * 所以本指标**只报告、不给绝对判定**——它的作用是让"长线"这件事在体检里可见，
-     * 具体是不是该收，要看卷末清账的弃置/限期回收裁决。
-     *
-     * <p>只统计 `resolvable=true` 的条目（见 {@code SeedEntry.resolvable}）：
-     * 人物状态/氛围点缀不承担兑现义务，计入只会把在途数注水。
-     */
     private void addForeshadowPending(List<BatchHealthReport.Metric> metrics,
                                       List<String> recommendations,
                                       List<ChapterSummaryEntity> chapters,
@@ -551,13 +448,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * **漏收伏笔数**（2026-10-02 新增，P2a）：已过计划回收章但仍未回收的条数。
-     *
-     * <p>这是"**有意养的长线**"与"**被写忘了的线**"的分界线——现有指标都区分不了这两者。
-     * P2b（排期表）就位前 `scheduledPayoffChapter` 恒为 null ⇒ 本指标恒为 0，
-     * **属预期惰性**（不报 0 以避免误导：干脆不产生该指标）。
-     */
     private void addForeshadowMissed(List<BatchHealthReport.Metric> metrics,
                                      List<String> recommendations,
                                      List<ChapterSummaryEntity> chapters,
@@ -587,16 +477,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * **清账审计**（2026-10-02 新增，P2a）：静默兑现数 —— 账记为未填、实际已被剧情消化的条数。
-     *
-     * <p><b>为什么这条比它看起来重要</b>：实测两个阶段 19 条 VOID 里约 9–10 条的 reason 写着
-     * 「已在第X章兑现/已闭合」——即**剧情收了但 `foreshadowingResolved` 从没记录**。
-     * 它是清账弃置的**最大单一来源**，且**直接压低伏笔跨度口径**
-     * （「ch9 买书 → ch24 兑现」本是一条 15 章跨度，因漏记而不计入 spans）⇒
-     * **实测平均跨度被系统性低估**。本指标是衡量该缺口的唯一入口，
-     * 也是后续强化摘要 prompt 的依据。
-     */
     private void addSettlementAudit(List<BatchHealthReport.Metric> metrics,
                                     List<String> recommendations,
                                     List<ForeshadowSettlementEntity> settlements) {
@@ -624,18 +504,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 伏笔平均保密跨度（2026-10-01 新增）：埋设到回收的平均章距。
-     *
-     * <p>治的是"读起来浅"：实测第 1–15 章 13 条回收伏笔的跨度为 1 章 ×8、2 章 ×2、3 ×1、
-     * 6 ×1、8 ×1，平均 2.23 章、77% 在 2 章内兑现——大量"后天登门"式的约定伏笔，
-     * 埋下去立刻收，读者来不及惦记。**没有这个指标就看不见这个问题**（对白/账本/候选全都正常）。
-     *
-     * <p>观测口径与规划层反馈同源（{@link ForeshadowSpanPolicy}）：本方法只报告，
-     * 真正治本的是 {@code ChapterPlanPromptService.appendForeshadowSpanFeedback} 把信号回灌给规划者。
-     *
-     * <p>无回收样本（新书前几章）时**跳过指标**，不报 0——欠采样下比例没有意义。
-     */
     private void addForeshadowSpan(List<BatchHealthReport.Metric> metrics,
                                    List<String> recommendations,
                                    List<ChapterSummaryEntity> chapters,
@@ -689,19 +557,6 @@ public class BatchHealthService {
     }
 
 
-    /**
-     * 主线最长停留 = 连续停留在同一悬念档位的最大章数（2026-09-22 新增）。
-     *
-     * <p>治的是"原地转圈"：实测一整批 6 章主线零推进，每章都是"发现线索 → 自我否定 → 回到原点"，
-     * 而数据指标（对白/候选/账本）全都正常——**没有这个指标就看不见结构性问题**。
-     *
-     * <p>判据与计划闸门 {@code SuspenseLadderPolicy} **同源**（同一份实现）：
-     * 只有某个"连续同档段"以**非过渡章**收尾时才算数（过渡章本就是蓄势）。
-     *
-     * <p>⚠️ 档位表是阶段蓝图针对本书生成的，因此比较只在**同一档位表内**进行
-     * （一批可能跨多个阶段、各表不同，跨表比下标无意义）。
-     * 数据不足（无档位记录 / 同一表内不足 3 章）时**跳过指标**，不报 0。
-     */
     private void addSuspenseHold(List<BatchHealthReport.Metric> metrics,
                                  List<String> recommendations,
                                  List<ChapterSummaryEntity> chapters,
@@ -766,17 +621,6 @@ public class BatchHealthService {
         return null;
     }
 
-    /**
-     * 账本完整度 —— **分档计权**（2026-09-22 重新定义）。
-     *
-     * <p><b>改之前的口径</b>：已入账 /（已入账 + 挂起）。问题在于"已入账"里混着**放宽档**
-     * （SPREAD / ANCHORED / 裁决档）——它们的证据是宽松匹配得来的，可信度低于逐字命中的严格档，
-     * 却和它们**同权计入**。于是指标会虚高：实测出现过 94% 的完整度背后藏着 12% 的放宽档。
-     *
-     * <p><b>现口径</b>：{@code (严格入账 + 0.5 × 放宽入账) / (严格入账 + 放宽入账 + 挂起)}，
-     * 衡量的是**账本的可信度**而不是条目数量。改造前"唯一单调恶化项"的含义不变
-     * （挂起越攒越多而账本越来越空，是所有"账本与正文矛盾"的根）。
-     */
     private void addLedgerCompleteness(List<BatchHealthReport.Metric> metrics,
                                        List<String> recommendations,
                                        List<ChapterSummaryEntity> chapters) {
@@ -831,11 +675,6 @@ public class BatchHealthService {
     private void addNewPlaceRate(List<BatchHealthReport.Metric> metrics,
                                  List<String> recommendations,
                                  List<ChapterSummaryEntity> chapters) {
-        // 按**字面**统计地点，不做同义归并 实测结论）：曾尝试按公共子串把变体名归并，
-        // 但在 162 章基线上把「九渊剑冢」建筑群下 33 个子区域（外围冰瀑下 / 最高处葬剑台 /
-        // 核心虚空内 / 前往途中…）全部吞并成一个地点——"同一建筑群的不同子区域"与"同一处的
-        // 不同叫法"字面不可分，归并会把真实换场抹平、让本指标失真（比虚高更危险）。
-        // 命名不一致改为在规划层源头约束（见 PlaceTrajectoryPolicy 的命名要求）。
         Set<String> seen = new HashSet<>();
         int withPlace = 0;
         int newPlaces = 0;
@@ -895,17 +734,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 最长连续过渡章段：过渡章的另一条硬约束（不得连续 &gt; 2 章）此前只写在规划 prompt 里，
-     * 观测层只统计总占比——于是"12 章里连续 3 个过渡章、总占比 25%"这种节奏塌陷完全不可见
-     * （占比达标 ≠ 分布合理，单看占比会漏掉连续段的集中塌陷）。
-     *
-     * <p>阈值与规划层声明的约束对齐：≤2 章为 OK（即未违反约束），3 章为 WATCH（已越线一次），
-     * ≥4 章为 DEGRADED（连续多段越线，节奏已塌）。
-     *
-     * <p>过渡章的第三条约束「每章至少一处关系/信息/资源变化」是语义判断，
-     * 机械层无法核验，仍依赖规划 prompt 与审校——此处只做可机械化的部分。
-     */
     private void addTransitionRun(List<BatchHealthReport.Metric> metrics,
                                   List<String> recommendations,
                                   List<ChapterSummaryEntity> chapters) {
@@ -1041,16 +869,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 放宽档入账占比 = 留痕档（spread/anchored）+ 裁决档（adjudicated）条目 / 全部已入账条目。
-     * 反编造门放宽是为了救回真事实，但放宽比例过高就等于门形同虚设——这是入账门改造的刹车表。
-     *
-     * <p><b>口径必须覆盖一致性事实</b>（2026-09-16 修正）：一致性事实同样过 EvidenceMatch、
-     * 同样可能有 spread/anchored/adjudicated 档位（{@code ConsistencyFact.evidenceTier}）。
-     * 只统计三本状态账会漏报——极端情况下状态账全是 exact、一致性事实全是 adjudicated，
-     * 本指标仍显示"很健康"，而账本完整度指标（已把一致性事实计入 kept）却显示很差，
-     * 两个口径互相矛盾会让体检失去可信度。
-     */
     private void addLooseTierShare(List<BatchHealthReport.Metric> metrics,
                                    List<String> recommendations,
                                    List<ChapterSummaryEntity> chapters) {
@@ -1100,12 +918,6 @@ public class BatchHealthService {
                 || tier.startsWith("adjudicated"));
     }
 
-    /**
-     * 候选链路两项指标（2026-09-16 三章实测后补）：
-     * 触发率 = 触发/章数（历史基线 19%，本批 100%）；采纳率 = 采纳/触发（历史 48%，本批 67%）。
-     * **判定"白烧"的标准是采纳率而不是触发率**——所以两个都要看：
-     * 触发率异常升高说明审校 MINOR 变多，采纳率下滑才说明重写真的在浪费。
-     */
     private void addCandidateMetrics(List<BatchHealthReport.Metric> metrics,
                                      List<String> recommendations,
                                      int chapterCount,
@@ -1139,16 +951,6 @@ public class BatchHealthService {
         }
     }
 
-    /**
-     * 对白两维指标：行级占比 + 轮次密度（各章均值，机械统计）。
-     *
-     * <p><b>为什么要两维</b>（2026-09-23）：占比只回答"引号行多少"，漏掉"占比合格但轮次稀疏"
-     * ——都市校园恋爱那本占比 25% 勉强合格，轮次密度 7.4/千字（同批新书 10.0-10.9，全样本中位 9.5），
-     * 读者反馈"对话太少、张力不足"。恋爱/智斗的拉扯感来自一来一回的**次数**。
-     *
-     * <p>阈值按题材切换：对话驱动题材（ROMANCE）更严。题材取自摘要的机械字段 storyGenre
-     * （而非方法参数），保证批末日志与 /health 端点口径一致。旧摘要无该字段时退化为基础阈值。
-     */
     private void addDialogueMetrics(List<BatchHealthReport.Metric> metrics,
                                     List<String> recommendations,
                                     List<ChapterSummaryEntity> chapters) {
@@ -1213,15 +1015,6 @@ public class BatchHealthService {
         return v == Math.floor(v) ? String.valueOf((int) v) : String.format("%.1f", v);
     }
 
-    /** 总体分级：取各项最差；劣化项达到 CRITICAL_METRIC_COUNT 项升级为 CRITICAL */
-    /**
-     * 阶段规划覆盖（2026-10-05 新增）：最新蓝图终点是否覆盖已写末章。
-     *
-     * <p><b>为什么显式进体检</b>：蓝图生成/解析失败走 fail-soft 后，批次会**静默**在旧蓝图上滑行——
-     * 无新任务、无出口条件审计、无排期（36-40 章实测：排期 71 条原地踏步，第 8 阶段规划整体缺位）。
-     * 此前只有一条易被淹没的 WARN；进体检后 DEGRADED 会把批末体检顶成 WARN 级输出，
-     * 让"本批规划缺位"与字数/密度问题同台可见。
-     */
     private void addStagePlanningCoverage(List<BatchHealthReport.Metric> metrics,
                                           List<String> recommendations,
                                           List<ChapterSummaryEntity> chapters,
@@ -1257,16 +1050,6 @@ public class BatchHealthService {
                 BatchHealthReport.Direction.HIGHER_IS_BETTER, level, detail));
     }
 
-    /**
-     * 进度对齐（2026-10-05 新增）：大纲（chapterGoal）按章段预算的时间标记 vs 时序锚实际值。
-     *
-     * <p><b>背景</b>：新书 45 章只讲了大纲预算前 10 章的内容（时序锚停在 2002-07/4 岁，
-     * 大纲 ch41-50 预算 9 岁/2007 年）——结构上没有任何机制看得到这个漂移，本指标让它
-     * 每批可见：滞后段数 ≥1 WATCH、≥2 DEGRADED，并给出"补齐/改大纲"两条出路。
-     *
-     * <p><b>通用性</b>：chapterGoal 无结构（散文大纲）或解析为空时豁免；段无数值时间标记
-     * （如奇幻的境界纪年）时同样豁免——只对可数值比较的年份/年龄报滞后，不臆造。
-     */
     private void addOutlinePacing(List<BatchHealthReport.Metric> metrics,
                                   List<String> recommendations,
                                   List<ChapterSummaryEntity> chapters,

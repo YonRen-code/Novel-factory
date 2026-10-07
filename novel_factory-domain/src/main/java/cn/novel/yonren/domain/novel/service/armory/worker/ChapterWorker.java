@@ -546,7 +546,7 @@ public class ChapterWorker {
                     || globalNo == offset + totalChapters)) {
                 try {
                     storyRepository.snapshotCheckpoint(
-                            storyDir, cn.novel.yonren.domain.novel.model.entity.CheckpointType.AUTO, null);
+                            storyDir, cn.novel.yonren.types.enums.CheckpointType.AUTO, null);
                 } catch (Exception e) {
                     log.warn("自动检查点创建失败，已跳过（章节仍逐章落盘）：{}", e.getMessage());
                 }
@@ -1358,19 +1358,7 @@ public class ChapterWorker {
         }
     }
 
-    /**
-     * 构建已用情节模式黑名单：从最近5章摘要中提取核心情节，防止LLM重复使用相同情节套路。
-     * 典型案例：第19章和第23章都用了"演武场演示→长老震惊→获得授权"的套路，导致情节完全重复。
-     * 返回null表示无历史可参考（第1章或摘要为空）。
-     */
-    /**
-     * 已用情节模式块（正文层）：委托 {@link UsedPatternPolicy}，与规划层共用同一实现。
-     *
-     * <p>此前这里有一份私有实现（"最近 5 章摘要前 80 字 + 首个节拍 goal→结果"），
-     * 规划层则完全没有对应块——重复的源头在规划层，正文层再劝也拦不住。
-     * 现两处共用同一实现，避免"规划说没重复、正文说重复"的口径分裂
-     * （项目里已因"两份判据各自演化"出过几次问题）。窗口沿用 5 章，与改造前一致，便于对照。
-     */
+
     private String buildUsedPatternBlacklist(List<ChapterSummaryEntity> summaries, int chapterNo) {
         return UsedPatternPolicy.render(summaries, chapterNo, UsedPatternPolicy.BODY_LOOKBACK);
     }

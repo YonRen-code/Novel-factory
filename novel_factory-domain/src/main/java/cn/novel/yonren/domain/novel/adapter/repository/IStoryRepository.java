@@ -7,7 +7,7 @@ import cn.novel.yonren.domain.novel.model.entity.ChapterPlanItemEntity;
 import cn.novel.yonren.domain.novel.model.entity.ChapterSummaryEntity;
 import cn.novel.yonren.domain.novel.model.entity.ConsistencyIndexEntity;
 import cn.novel.yonren.domain.novel.model.entity.CheckpointEntity;
-import cn.novel.yonren.domain.novel.model.entity.CheckpointType;
+import cn.novel.yonren.types.enums.CheckpointType;
 import cn.novel.yonren.domain.novel.model.entity.ForeshadowScheduleEntity;
 import cn.novel.yonren.domain.novel.model.entity.ForeshadowSettlementEntity;
 import cn.novel.yonren.domain.novel.model.entity.QualityDebtEntity;

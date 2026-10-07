@@ -6,25 +6,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 段落结构兜底（机械，2026-10-01 实测后新增）。
- *
- * <p><b>为什么必须有</b>：实测第 1–10 章批次里 4/10 章的原稿换行数为 0——写手把整章
- * 3000~4600 字当成一个字符串吐出来。其中 2 章因候选选优采纳了挑战者稿而被掩盖，
- * 另外 2 章（ch2 3021 字、ch10 4649 字）直接以"单段巨块"落盘。
- *
- * <p>这段坏文本的危害不止是排版：
- * <ul>
- *   <li>{@link DialogueRatioPolicy#ratioOf} = 含引号行 / 非空行。整章只有 1 行且含引号时
- *       结果恒为 <b>1.0</b>，把「对白行占比」这项体检指标系统性拉高；</li>
- *   <li>段落密度审校（paragraph-audit）按段落找注水，单段巨块会让它无从下手；</li>
- *   <li>读者侧直接不可读。</li>
- * </ul>
- *
- * <p><b>做法是纯机械重排，不改一个字</b>：只在"换行数明显低于篇幅应有段落数"时才介入，
- * 按中文句末标点切句并聚合成段落。任何已有正常换行的正文一律原样返回——
- * 宁可漏修也不动写手的分段选择。
- */
+
 public final class ParagraphStructurePolicy {
 
     private ParagraphStructurePolicy() {
@@ -72,16 +54,6 @@ public final class ParagraphStructurePolicy {
         return reparagraph(content) != content;
     }
 
-    /**
-     * 机械检测：正文段落结构坍缩。
-     *
-     * <p>与 {@link #reparagraph} 的分工——本方法只<b>报告</b>写手的格式异常，
-     * 用于回灌规划层（提示写手分行）；重排本身是兜底动作，不产生质量结论。
-     * 归为 MINOR/aesthetic：根因在写手侧，重写整章不成比例。
-     *
-     * @param originalContent 重排<b>前</b>的原始正文
-     * @param limitChars      段落数下限（由本策略按篇幅推算）
-     */
     public static List<ChapterIssueEntity> checkStructureCollapse(String originalContent, int limitChars) {
         if (StringUtils.isBlank(originalContent) || originalContent.length() < REPARAGRAPH_MIN_CHARS) {
             return List.of();
@@ -131,14 +103,6 @@ public final class ParagraphStructurePolicy {
         return paragraphs;
     }
 
-    /**
-     * 按句切分。切点落在句末标点<b>之后</b>（零宽后顾，不吞标点）。
-     *
-     * <p>关键约束：<b>不得从句子的内部切开</b>。台词形如 {@code 「你来了。」他说。} ——
-     * 若允许在 {@code 。} 后切分，会把引号撕成孤立的 {@code 」}，既污染段落也让
-     * 对白行判定错乱。所以 {@code 。！？…} 只有在<b>不在引号内</b>时才是合法切点。
-     * 这里用不了变长后顾（Java 不支持），改为按引号栈状态手工扫描。
-     */
     private static List<String> splitSentences(String line) {
         List<String> sentences = new ArrayList<>();
         StringBuilder buf = new StringBuilder();

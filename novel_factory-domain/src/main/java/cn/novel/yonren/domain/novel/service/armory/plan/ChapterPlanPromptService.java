@@ -55,18 +55,7 @@ public class ChapterPlanPromptService {
     /** 规划 prompt 尾部章节 schema 指令块的起始标记：分支推演须自此处剥离，避免与"只输出方向"指令打架 */
     public static final String PLAN_SCHEMA_MARKER = "请严格按照以下 JSON 格式输出";
 
-    /**
-     * 章级主线推进相关指令的起始标记（2026-10-02）。
-     *
-     * <p>为什么需要单独标出来：分支推演（{@code PlanBranchService#stripPlanSchema}）原先只剥离
-     * {@link #PLAN_SCHEMA_MARKER} 之后的 schema，而**本块位于 schema 之前**，因此会残留下来。
-     * 残留的后果实测很直接：块里是一份"第16章：… / 第17章：…"的**逐章清单**——
-     * 比 schema 更具体的输出引导——模型于是**交回一份章节计划数组**，而不是分支推演要的方向对象。
-     *
-     * <p>证据（2026-10-02）：P1 上线前 2 个作业分支推演均"双稿在册"；
-     * 上线后 2 个作业均"进取线解析失败，采用稳健线方向"，且日志里那 4 条
-     * {@code BeanOutputConverter} 解析失败的原始输出正是带 {@code mainLineAdvance} 的章节计划数组。
-     */
+
     public static final String MAINLINE_BLOCK_MARKER = "【章级主线推进】";
 
     /** 8.2 要求行的前缀标记（与 {@link #MAINLINE_BLOCK_MARKER} 一同剥离，避免留下悬空的"见下方"引用） */
@@ -223,9 +212,6 @@ public class ChapterPlanPromptService {
             sb.append("\n若当前前情尚未满足某条护栏,本段最前 1-2 章必须先安排过渡补齐,")
                     .append("严禁无视护栏直接跳进后续剧情。");
         }
-        // 悬念推进锚：把蓝图层定义的核心悬念与档位表摆到"规划那一刻"。
-        // ⚠️ 无档位表时（无蓝图模式/老故事）**锚块与要求都不出现**：不能提一个不存在的块，
-        // 否则模型会去猜"上方那张表在哪"，而校验侧同时又是跳过的
         if (ChapterPlanChecks.hasUsableLadder(blueprint)) {
             sb.append("\n\n【悬念推进锚】本书核心悬念：")
                     .append(blueprint.getCoreSuspense() == null ? "（蓝图未给出）" : blueprint.getCoreSuspense());
@@ -286,9 +272,6 @@ public class ChapterPlanPromptService {
                 .append("它豁免'关键事件 ≥ 3'，但仍须落在已建立的地点里，并带来一处实质变化。");
         sb.append("\n\n【冲突编排指令】【禁止对称出场】多方势力交锋时，严禁让他们像开会一样同时到达并轮流发言")
                 .append("必须制造信息差和时间差（例如：一方暗中潜伏，一方迟到，一方只派低阶试探），让冲突呈现非对称性和意外感");
-        // 事件密度41-45 章实测）：keyEvents 是写手的供给清单——示例只给 2 条时，
-        // 模型稳定交付 3 条/章（正文 1100-1400 字），供给不足直接变成正文注水或独白章。
-        // 示例条数就是有效 schema（教训 #1），示例与要求同步提到 4 条基准。
         sb.append("\n\n【事件密度】每章 keyEvents 3-5 条：normal 章以 **4 条**为基准（其中至少 1 条对话承载事件），")
                 .append("transition 章可 2-3 条；条数不足的章，写手只能靠注水或独白凑篇幅。")
                 .append("每章必须声明 timeAdvance（本章结束时的时间，相对上一章推进 3-7 天；每段至少 1 章跳月），")
@@ -298,10 +281,6 @@ public class ChapterPlanPromptService {
                 .append(",\"title\":\"章节标题\",\"goal\":\"本章目标\",\"characters\":[\"角色A\"],")
                 .append("\"keyEvents\":[\"关键事件1\",\"关键事件2\",\"关键事件3\",\"关键事件4\"],\"timeAdvance\":\"推进2周，至2003年10月下旬\",\"endingHook\":\"结尾悬念\",")
                 .append("\"chapterType\":\"normal\",\"suspenseBeat\":\"档位表原文之一\"");
-        // ⚠️ **这个示例就是模型的"有效 schema"**。
-        // 新增 mainLineAdvance 时只写了要求（8.2）与注入块，**漏了这一行**，
-        // 结果 qwen3.7-max 五章全部不回填该字段（第一次校验与重规划后依然为空），
-        // 闸门二次不过只能放行。要求文本 ≠ 契约，**字段不进示例就等于不存在**。
         if (blueprint != null && blueprint.getMainLineByChapter() != null
                 && !blueprint.getMainLineByChapter().isEmpty()) {
             sb.append(",\"mainLineAdvance\":\"【章级主线推进】块中本章的原文\"");
@@ -318,10 +297,6 @@ public class ChapterPlanPromptService {
         StringBuilder rule = new StringBuilder("\n4. 关键事件、目标、结尾悬念必须使用与故事题材、时代、人物身份一致的世界内语言，")
                 .append("不得把作者分析语、学术报告腔或时代之外的技术黑话直接当作剧情事实；")
                 .append("人物用词与判断必须符合其年龄、教育、职业和当前认知边界。");
-        // 能力—阶段一致性通用化）：圣经的"章节带目标"会给出远快于实际时间轴的进度
-        //（如"21-30 章步入小学/自学高阶数学"，而人物在此区间仍是十一个月大的婴儿）。
-        // 若不与【时序锚】对齐，规划层会把"这一带应该读小学"直接写成婴儿的里程碑。
-        // 规则按通用原则表述：认知是否超前由故事设定决定，媒介一律不得超前；间接展示变体同禁。
         rule.append("若前情记忆含【时序锚】，主角能力展示必须区分两类：")
                 .append("**认知超前**（理解、判断、偏好、策略性拖延、权衡取舍）是否允许超出现阶段，")
                 .append("由故事设定决定——设定允许时不得抹平；")
@@ -367,18 +342,6 @@ public class ChapterPlanPromptService {
         return rule.toString();
     }
 
-    /**
-     * 密度反馈块：扫描最近 DENSITY_LOOKBACK 章的机械密度信号（validChars/keyEventCount），
-     * 发现低密度章节时注入指令——短章的根因是计划给的料太稀，责任在规划层而非正文层。
-     * 老数据 validChars 为 null 的章节不参与判定（无法机械核实，宁可漏报不误伤）。
-     *
-     * <p>transition 章不计入"供给不足"：过渡章本就是有意留白，
-     * 豁免不等于放水——prompt 里仍要求至少一处实质变化。
-     *
-     * <p><b>注水反馈（2026-09-29 补）</b>：同一块对称地处理"篇幅超标"——实测第 20 章有效字 4170
-     * （邻章 1607～2205）而关键事件数不变（5 个），信息密度腰斩。**过渡章不豁免上沿**：
-     * 下沿豁免它是因为它本就该短，写得比常规章还长的过渡章恰恰是最典型的注水形态。
-     */
     static void appendDensityFeedback(StringBuilder sb, List<ChapterSummaryEntity> summaries) {
         if (summaries == null || summaries.isEmpty()) {
             return;
@@ -421,21 +384,6 @@ public class ChapterPlanPromptService {
         }
     }
 
-    /**
-     * **伏笔长度反馈**（2026-10-01 新增）：伏笔"埋了就收"是本书读起来浅的直接原因。
-     *
-     * <p>实测第 1–15 章：回收 13 条伏笔，跨度 1 章 ×8、2 章 ×2、3 章 ×1、6 章 ×1、8 章 ×1，
-     * 平均 2.23 章、**77% 在 2 章内兑现**。42 条埋设里大量是"后天登门""下周前需答复"这类
-     * 约定式伏笔——规划时就把兑现日写死在下一两章，写手只是忠实执行。
-     *
-     * <p><b>为什么放在规划层而不是写手层</b>：伏笔埋多长是**计划**决定的，写手无权改。
-     * 这里注入一段"你上一批的伏笔收得太快"的反馈，让规划者在排后续章节时主动留长线——
-     * 与【注水反馈】【密度反馈】同一套路：机械观测 → 回灌规划 → 治本。
-     *
-     * <p>触发条件从严：回收样本 ≥{@value ForeshadowSpanPolicy#MIN_SAMPLES_FOR_FEEDBACK} 条
-     * 且短命占比 >{@value ForeshadowSpanPolicy#SHORT_SPAN_RATE_LINE} 才注入——
-     * 欠采样与健康态都不唠叨，否则每段计划都贴一段套话，模型会当噪声忽略。
-     */
     static void appendForeshadowSpanFeedback(StringBuilder sb, List<ChapterSummaryEntity> summaries) {
         if (!ForeshadowSpanPolicy.shouldAdvise(summaries)) {
             return;
@@ -468,20 +416,6 @@ public class ChapterPlanPromptService {
                 .append("中途安排一次'接近真相但被打断'的推进，再兑现。");
     }
 
-    /**
-     * **章级主线推进块**（2026-10-02 新增）：把蓝图为本段各章安排的主线推进摆到"规划那一刻"。
-     *
-     * <p><b>为什么不复用一个块</b>：档位锚（{@code suspenseLadder}）与本章级推进是两个维度——
-     * 前者 3-6 档覆盖整个阶段（5-80 章），多章共用同一档是常态；后者逐章一条，
-     * 回答"这一章主线做了什么"。合在一个块里会让模型分不清哪个该"逐字照抄"。
-     *
-     * <p><b>只渲染本段用得到的章</b>：蓝图按 {@code MAINLINE_WINDOW=15} 章产出，
-     * 而一段通常只有 5 章；全量渲染纯占前缀预算（而前缀预算已实测长期 99-100%）。
-     * 越界章节由后续段各自渲染。
-     *
-     * <p>蓝图无该字段（老数据/补采失败）时**整块不出现**——与档位锚同样的降级口径：
-     * 不能提一个不存在的块，否则模型会去猜"上方那张表在哪"。
-     */
     static void appendMainLineBlock(StringBuilder sb, StageBlueprintEntity blueprint,
                                     int startNo, int endNo) {
         if (blueprint == null || blueprint.getMainLineByChapter() == null
@@ -513,18 +447,6 @@ public class ChapterPlanPromptService {
     /** 排期块注入条数上限（与限期回收同款：超出部分留在排期表，后续段各自注入，避免吃掉前缀预算） */
     private static final int SCHEDULE_INJECTION_LIMIT = 8;
 
-    /**
-     * **伏笔排期块**（2026-10-02 新增，P2b）：三块——必须埋 / 必须兑现 / **逾期补收**。
-     *
-     * <p><b>「本段不得兑现」这半句是当前完全缺失的指令</b>：它把 D3 那句抽象的"不要埋了就收"
-     * 落成了可执行的单条约束——否则段计划看到"本段要埋 X"的第一反应就是顺手把它收掉。
-     *
-     * <p><b>为什么必须有"逾期补收"块</b>：只注入"payoff 落在本段内"的条目时，
-     * 一旦某段没兑现，下一段规划时该条已不在段内 ⇒ **掉出注入** ⇒ 只能等阶段出口清账，
-     * 而阶段可长达 30-80 章。故逾期项**每段持续注入**，直到收掉或被清账裁决。
-     *
-     * <p>无排期表时整块不出现（老故事/未启用），与引入前行为完全一致。
-     */
     static void appendForeshadowScheduleBlock(StringBuilder sb,
                                               List<ForeshadowScheduleEntity> schedules,
                                               int startNo, int endNo) {

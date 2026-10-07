@@ -66,13 +66,6 @@ public class ForeshadowSettlementService {
 
     private final ChapterMemoryService chapterMemoryService;
 
-    /**
-     * 阶段出口清账（高层入口）：长期未填伏笔逐条裁决并就地生效——VOID 从伏笔账出账（strip 摘要，
-     * 由调用方随检查点落盘），全部裁决登记进结算台账（调用方负责落盘结算文件）。
-     * 以 stage.getEndChapter() 为裁决基准章号；批次开头补办与阶段末章在跑清账共用此入口
-     *
-     * @return 裁决清单；无长期未填伏笔返回空列表；裁决失败返回 null（fail-soft，账本不变）
-     */
     public List<ForeshadowSettlementEntity.SettlementDecision> settleStageBreakers(StoryVO.Module module,
                                                                                    StageBlueprintEntity stage,
                                                                                    String chapterGoal,
@@ -82,16 +75,7 @@ public class ForeshadowSettlementService {
         return settleStageBreakers(module, stage, chapterGoal, summaries, settlementsInOut, promptSink, null);
     }
 
-    /**
-     * 同上，但把**逾期排期线**并入候选（2026-10-02，P2b 的 A1 修正）。
-     *
-     * <p><b>为什么必须显式取并集</b>：候选原为 {@code Tier.BREAKER} 过滤，而档位公式是
-     * {@code importance×10 + 滞留章数×发酵系数 ≥ 100}——一条**刚埋不久但已到回收期**的排期线
-     * （滞留小）**根本到不了 BREAKER 档**，于是它压根进不了清账、P2b 标注的"欠账"通道**永不触发**。
-     * 排期线的过期与否是**计划事实**，不该由滞留时长决定。
-     *
-     * @param schedules 伏笔兑现排期表（可为 null——此时行为与引入本参数前完全一致）
-     */
+
     public List<ForeshadowSettlementEntity.SettlementDecision> settleStageBreakers(StoryVO.Module module,
                                                                                    StageBlueprintEntity stage,
                                                                                    String chapterGoal,
@@ -144,12 +128,6 @@ public class ForeshadowSettlementService {
         return settle(module, stage, chapterGoal, breakerItems, summaries, promptSink, Set.of());
     }
 
-    /**
-     * 逐条裁决长期未填的伏笔；输出与未填清单一一位置对齐。
-     *
-     * @param overdueIntents 逾期排期线的 intent 归一集合——命中者在 prompt 里标注
-     *                       「已过计划回收章——欠账，不是闲笔」，裁决取向与普通闲笔不同
-     */
     public List<ForeshadowSettlementEntity.SettlementDecision> settle(StoryVO.Module module,
                                                                       StageBlueprintEntity stage,
                                                                       String chapterGoal,

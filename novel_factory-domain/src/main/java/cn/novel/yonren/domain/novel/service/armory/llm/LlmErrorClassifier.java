@@ -5,37 +5,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CancellationException;
 
-/**
- * LLM 调用失败的**错误分类**：把"整批终止"这个唯一出口，拆成"该重试 / 该换模型 / 该跳过 / 该停"。
- *
- * <p><b>为什么需要</b>（2026-09-15 实测）：全自动化下最贵的失败不是写错一章，而是
- * <em>失败语义太粗</em>——403 {@code AllocationQuota.FreeTierOnly}（额度耗尽）、
- * 400 {@code invalid_request_error}（参数被拒）、404 {@code model_not_found}（模型名写错）、
- * 超时，全部落到同一个"整批终止"或 fail-soft 静默降级。而这四类的正确处置完全不同：
- * <ul>
- *   <li>超时/网络/5xx → <b>原样重试</b>（换模型毫无意义）</li>
- *   <li>额度耗尽 → 同 key 重试<b>没有意义</b>；但百炼的免费额度<em>按模型 endpoint 分别计量</em>
- *       （实测快照名 {@code deepseek-v4-pro-0813} 37/37 成功、裸别名 {@code deepseek-v4-pro} 却报 FreeTierOnly），
- *       所以<b>换模型有效</b></li>
- *   <li>模型不存在 / 参数被拒 → 重试永远失败，必须换模型（或改配置）</li>
- *   <li>内容审计命中 → 与模型无关，换模型也可能不过；属内容问题，不该让整批陪葬</li>
- * </ul>
- *
- * <p>因此分类结果要回答两个问题：<b>重试有没有用</b>、<b>换模型有没有用</b>。
- * 前者决定是否原样重试，后者在语义上表示"这个错误的成因是否与所选模型绑定"。
- *
- * <p><b>⚠️ 但"换模型有没有用"不等于"网关该不该换模型"</b>（2026-09-30 澄清）：
- * 网关的实际口径更宽——<b>除内容审计外一律换模型</b>（见 {@code SpringAiLlmGateway#shouldFallback}）。
- * 原因是瞬时抖动虽在语义上与模型无关，但传输层只重试 2 次、间隔极短，
- * 而"换个端点重跑"对上游掐断/网关抖动往往一次就过，且整批终止的代价远高于一次多余调用。
- * 故 {@link #shouldFallbackToAnotherModel} 保留为"成因与模型绑定"的语义判据，
- * 但<b>不再是网关的开关</b>——改网关行为请改 {@code shouldFallback}。
- *
- * <p>实现刻意只做<b>纯文本匹配</b>（遍历异常 cause 链取 message）而不依赖具体 SDK 异常类型：
- * Spring AI 把 HTTP 错误统一包成 {@code TransientAiException} / {@code NonTransientAiException}，
- * 真正的错误码（FreeTierOnly / model_not_found / content_policy_violation）只出现在 message 里；
- * 且换供应商时不必改判据。
- */
+
 public final class LlmErrorClassifier {
 
     /** 判定"该不该重试 / 该不该换模型"的失败类别 */
@@ -171,14 +141,6 @@ public final class LlmErrorClassifier {
         return sb.toString();
     }
 
-    /**
-     * 判断该失败的<b>成因是否与所选模型绑定</b>（即"换模型在语义上是否比原样重试更有意义"）。
-     * 等价于 {@code classify(error).isModelLevel()}，此方法存在是为了让调用点读起来是意图而非实现。
-     *
-     * <p>⚠️ <b>网关的降级开关不是它</b>：网关自 2026-09-30 起用"除内容审计外一律换模型"的更宽口径
-     * （见 {@code SpringAiLlmGateway#shouldFallback}）。本方法保留给"需要严格区分瞬时/模型层"的调用点，
-     * 例如成本归因与测试断言——那里只想知道错误的成因，不关心兜底策略。
-     */
     public static boolean shouldFallbackToAnotherModel(Throwable error) {
         return classify(error).isModelLevel();
     }

@@ -38,16 +38,11 @@ public class StoryGenerateRequestDTO {
     private Integer maxChapterCount;
     // 故事设定明确存在金手指/系统时传 true；false/null 时不启用三章频率规则
     private Boolean hasCheatMechanism;
+
     private String cheatMechanismName;
+
     private Integer cheatUsageInterval;
 
-    /**
-     * 请求级跳过章节计划审批门（2026-09-26 新增）：true = **本批不挂起**，计划校验后直连正文生成；
-     * false/null = 仍按 yml story.plan-approval 的开关与作用范围决定。
-     *
-     * <p>语义刻意定为"**只能放宽不能收紧**"：它无法让 yml 关闭的门重新生效，
-     * 以免请求参数悄悄改掉配置侧的"要审"意图。仅影响本次作业，不落 bible（属运行参数而非故事设定）。
-     */
     private Boolean autoApprovePlan;
 
     /** 本批创作要点（导演通道）：自由文本，注入卷/阶段/计划三个规划 prompt 顶部 */
@@ -55,16 +50,3 @@ public class StoryGenerateRequestDTO {
 }
 
 
-//    {
-//        "novel_title": "灵气复苏后的外卖员",
-//        "theme": "都市异能",
-//        "style": "逆袭打脸爽文",
-//        "worldSetting": "现代都市，少数人觉醒异能",
-//        "perspective": "第三人称",
-//        "targetAudience": "男频",
-//        "tone": "紧张、带爽感",
-//        "protagonist": "林川，23岁，外卖员，性格隐忍但有底线",
-//        "outline": "主角送外卖时卷入异能者冲突，意外觉醒能力",
-//        "chapterCount": 5,
-//        "chapterGoal": "写第一章，主角遭遇事件并觉醒能力"
-//        }

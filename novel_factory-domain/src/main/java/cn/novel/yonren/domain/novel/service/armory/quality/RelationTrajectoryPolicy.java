@@ -9,17 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 关系轨迹回灌：把 RELATION 事实聚合出的"当前关系态"摆到规划那一刻。
- *
- * <p><b>为什么需要</b>（2026-09-16，11 章无人值守实测后）：地点有轨迹回灌后新地点率立刻改善，
- * 而**关系/互动当时零指标零回灌**——同一批实测暴露"配角全是工具人、主角全程单机"。
- * 这是同一条老路：观测不到就不会被修。本策略与 {@link PlaceTrajectoryPolicy} 同构：
- * 从摘要的 RELATION 一致性事实聚合当前态（同 pair 保留最近章），注入规划 prompt。
- *
- * <p>配套的供给约束在规划 prompt 规则 8（每章 ≥1 个非主角主动发起的事件、≥1 次双向互动、
- * 代价多样化）——回灌解决"读者上次看到的关系是什么"，规则解决"这一章必须有人的戏"。
- */
 public final class RelationTrajectoryPolicy {
 
     /** 关系台账当前态最多渲染条数：超出按最近更新排序截断（防长跑后块体积随关系数线性膨胀） */
@@ -65,14 +54,6 @@ public final class RelationTrajectoryPolicy {
         return new ArrayList<>(byPair.values());
     }
 
-    /**
-     * 渲染关系轨迹块（注入规划层）；无任何 RELATION 事实时返回 null（冷启动不注入）。
-     * 块内含**硬约束**：改写关系态必须由正文事件支撑，禁止凭空跳变。
-     *
-     * <p>去重（2026-09-28）：此前同一批关系态被渲染两遍——全量列表（首见顺序）之后又列
-     * 「最近关系演变」top6，数据完全相同、仅排序不同（约 150~200 字纯重复）。
-     * 现改为**按最近更新降序单次渲染**：最近演变天然排在最前，"优先承接"由顺序表达而非再列一遍
-     */
     public static String renderTrajectory(List<ChapterSummaryEntity> summaries) {
         List<RelationState> states = currentStates(summaries);
         if (states.isEmpty()) {

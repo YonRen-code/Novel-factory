@@ -9,12 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * 伏笔保密边界机械门禁（零 LLM 调用）：伏笔账中"已埋未揭"伏笔的谜底关键词
- * 在本章正文中逐字命中即 BLOCKING——LLM 审校判"变相泄露"，机械层做精确兜底。
- * 关键词来源为埋设时登记的 payoffHints（摘要种子），揭示章由计划关键事件匹配豁免
- * （豁免在清单构建侧完成，此处只管词面扫描）。
- */
 public final class SecrecyViolationPolicy {
 
     /** 扫描正文，对禁泄关键词逐字计数；任一命中即产出一条 BLOCKING issue（evidence 为"关键词×次数"清单） */

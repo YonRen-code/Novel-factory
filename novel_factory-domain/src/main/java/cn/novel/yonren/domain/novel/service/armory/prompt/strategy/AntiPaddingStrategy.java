@@ -12,13 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/**
- * 反注水固定注入：chapter-content 场景每章必带，不走向量检索、不占检索名额——
- * 防注水是全书级硬约束，不能交给"检索命中率"决定。
- * 注入内容为 pacing-control.md 的灌水定义/高发形态/章末自检 + quality-checklist.md 的注水检测节，
- * 按标题锚点抽取小节而非全文注入，控制 prompt 体积；单个锚点缺失时 fail-soft 跳过该小节
- * （全部锚点都缺失属资产丢失，由 {@link CriticalPromptRule} 终止作业而非静默无约束开写）
- */
 @Component
 @RequiredArgsConstructor
 public class AntiPaddingStrategy implements PromptRuleStrategy, CriticalPromptRule {

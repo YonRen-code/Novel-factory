@@ -71,14 +71,7 @@ public class ChapterReviseService {
                     + "\n2. 未被 issue 覆盖的段落保持原样；"
                     + "\n3. 输出与正文同 schema 的整章 JSON。";
 
-    /**
-     * 定向补丁形态的任务头。
-     *
-     * <p>措辞要点：①点明"补丁之外的正文一个字都不会被改动"——这正是它相对整章重写的全部优势；
-     * ②点明锚点会被**程序精确索引**、改一个字即整份丢弃，让它预先知道代价；
-     * ③给一个真实场景的示例（补过渡描写）——催生本形态的就是这个案例；
-     * ④显式允许"放弃"（返回空补丁），否则它会硬凑一个不合法的补丁。
-     */
+
     private static final String TASK_HEADER_PATCH =
             "你是小说流水线修订员。请先判断下面的 BLOCKING 问题能否用**最小范围的定向补丁**修掉。"
                     + "\n\n【定向补丁是什么】你只给出「原文锚点 → 替换文本」，程序会把原稿中的该锚点替换掉。"
@@ -259,16 +252,6 @@ public class ChapterReviseService {
         return new PatchOutcome(outcome.content(), null);
     }
 
-    /**
-     * 机械套用补丁：锚点必须在原稿中<em>逐字存在且唯一</em>，且多补丁之间不得重叠
-     *（重叠时"谁先改"会改变结果）。
-     *
-     * <p>刻意不做模糊匹配、不做"找最相近片段"的兜底——**套错位置比不修更糟**，
-     * 而且这种错在成稿里肉眼看不出来。任何一处不合法即整份作废，安静回退整章重写。
-     *
-     * <p>⚠️ 包外可见（{@code public}）：段落信息增量审校复用同一套套用规则——
-     * 补丁机制只应有一份实现，否则"锚点唯一性"这类约束迟早会分叉。
-     */
     public static PatchOutcome applyPatches(String original, List<Patch> patches) {
         List<int[]> spans = new ArrayList<>(patches.size());
         List<String> replacements = new ArrayList<>(patches.size());
@@ -453,16 +436,6 @@ public class ChapterReviseService {
         return sb.toString();
     }
 
-    /**
-     * 采纳闸门（纯代码）。硬闸只保留"内容完整性"两类：字数不许腰斩、关键事件不许丢。
-     *
-     * <p><b>风格账闸降级为告知（2026-10-03）</b>：修订的唯一任务是修 BLOCKING，而"新增跨章重复句 /
-     * 疲劳词跨过超频线"在严重度体系里是 MINOR（只记录、不触发修订，见 GateResult 类注释）——
-     * 用 MINOR 级问题否决 BLOCKING 修复属于优先级倒挂。实测该闸把大批修复拒之门外
-     *（第 3/5 章各两轮修订全部因"修订稿引入新的跨章重复句"被拒，硬伤带病落盘成质量债；
-     * 旧批次同类现象为"修订稿使疲劳词达到超频阈值"）。降级后风格代价仍然可见：
-     * merge 结果照常累加进风格账，由下一章【风格警示】与规划回灌治理。
-     */
     private String runGates(String originalContent,
                             ChapterContentEntity revised,
                             ChapterPlanItemEntity item,
@@ -494,17 +467,6 @@ public class ChapterReviseService {
                 }
             }
         }
-
-        // 3. keyEvents 命中闸（硬）：正文须覆盖关键事件的核心要素（专名/道具/动作短语）。
-        //    用「最长公共连续子串 ≥ 阈值」判定，而非整段字面 contains——正文按 prompt 要求会把
-        //    关键事件"转化为剧情"而非照抄原文，整段字面命中几乎不可能，机械判词反而把已正确覆盖误判为缺失。
-        //
-        //    两条放行规则（实测：4/5 章 BLOCKING 全部拖满两轮记债、零修复）：
-        //    ① **原稿未覆盖的事件不再强求**——生成期已放行的既成事实，修订无从"恢复"从未存在的内容；
-        //    ② **允许 ≤ {@link #REVISE_ALLOWED_EVENT_LOSS} 条事件损失**——时序锚类 BLOCKING 的违规现场
-        //    就长在关键事件场景里（如"4岁写出2026"本身就是排期项），修复必然改写该场景 ⇒ 覆盖必然失配，
-        //    拒绝只会让"整章重写"撞同一堵墙。放行的损失由既有三道兜底承接：字数闸防腰斩、修订验证
-        //    复审防修复失败、摘要账本与规划反馈防节拍漂移。丢失 ≥2 条仍拒绝（那不是修复代价，是跑偏）。
         List<String> keyEvents = item.getKeyEvents();
         if (keyEvents != null && !keyEvents.isEmpty()) {
             String normalizedRevised = revised.getContent().replaceAll("\\s+", "");

@@ -25,17 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 终局审查服务：收官门禁触发时，对照四类全书级资产独立审计——不信任末阶段自证。
- * 四维：
- *   FINALE_COMMITMENTS 终局承诺（remainingFinaleBeats/completedFinaleBeats + exitConditions/results）
- *   FORESHADOW         未回收伏笔（开放伏笔逐条：已回收/已弃置/仍悬空）
- *   CHARACTER_FATE     主要角色命运（characterStates 是否各有明确结局）
- *   WORLD_STATE        灾后世界状态（factionStates/itemStates 是否收束）
- * 达成必须给出可机械校验的证据（章号 + 该章摘要内一段连续原文引用），经 {@link EvidenceMatch} 归一化校验，
- * 编造/漂移按未达成处理（宁严勿松）。任一维不通过 → overallPass=false 并产出 reworkTasks（返工缺口）。
- * fail-soft：任何失败或四维不齐返回 null，调用方按 legacy 行为放行，绝不锁死合法完结故事。
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor

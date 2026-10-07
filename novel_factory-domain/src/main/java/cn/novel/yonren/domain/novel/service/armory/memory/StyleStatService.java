@@ -33,19 +33,6 @@ public class StyleStatService {
     /** 疲劳词警示阈值：全篇出现达到该次数即进超频名单 */
     public static final int FATIGUE_THRESHOLD = 5;
 
-    /**
-     * 近重复判定的相似度下限：字符 3-gram 的 Jaccard 相似度。
-     *
-     * <p><b>为什么需要它</b>：查重原先用精确 {@code equals}，而模型最爱的重复方式是"改一两个字"——
-     * 实测第 9/10 章结尾仅差一个"他"字：
-     * 「枕头底下，那根烟硌着<b>他</b>的后脑勺，像一根小小的骨头」，
-     * 精确匹配下跨章重复句统计结果为 <b>0 条</b>，等于完全失明。
-     *
-     * <p>取 0.70 依据实测：上述一对句子的 3-gram Jaccard ≈ 0.77（会被捕获）；
-     * 而"同结构但不同内容"的句子（如"他低头看自己的手"vs"他低头看自己的脚"）虽相似，
-     * 其 Jaccard 低于该线。该判据只影响<b>风格警示与 MINOR 记账</b>，不进 BLOCKING 闸门，
-     * 故取偏保守的阈值：宁可漏报也不要把正常文体误标成重复。
-     */
     private static final double NEAR_DUPLICATE_JACCARD = 0.70;
 
     /** 近重复判定的 n-gram 阶数（中文按字取 3 元，兼顾敏感度与噪声） */
@@ -196,12 +183,6 @@ public class StyleStatService {
         return sb.toString();
     }
 
-    /**
-     * 渲染修订侧疲劳词禁新增名单（注入修订 prompt）：全文词表 + 已累计逼近/达到阈值的词点名。
-     *
-     * <p>2026-10-03 措辞同步：风格账闸已降级为"只告知不拒稿"（修订优先修 BLOCKING），
-     * 故不再声称"即拒稿"——但新增仍会推高全书累计、由后续每一章的风格警示承担代价，措辞如实说明。
-     */
     public String renderReviseFatigueBlacklist(StyleStatEntity stat) {
         StringBuilder sb = new StringBuilder("【疲劳词禁新增名单】修订稿严禁新增或推高以下词的全书累计次数（跨章累计达到")
                 .append(FATIGUE_THRESHOLD).append("次即进入全书风格警示，代价由后续每一章承担）：");

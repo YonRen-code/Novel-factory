@@ -79,17 +79,7 @@ public class ChapterBeatsService {
         }
     }
 
-    /**
-     * 节拍是否带来状态变化——信息增量判据（2026-09-22）。
-     *
-     * <p>口径与 {@link #renderBeatsPrompt} 的扩写纪律同源：{@code infoGain} 的语义本就是
-     * 「新信息 / 状态变化 / 关系变化」（见 {@code ChapterBeatsEntity.Beat#infoGain} 注释），
-     * 因此非空即视为本拍有增量。**没有增量的拍应当并入相邻拍，而不是原地扩写凑篇幅。**
-     *
-     * <p>⚠️ 这里**不新增字段**：{@code stateChange} 的语义已由 {@code infoGain} 承载，
-     * 真正缺的一直是<em>机械校验</em>——此前只在 prompt 里要求过，代码里没有任何检查
-     * （典型的"指标已有、只是没动作"）。
-     */
+
     public static boolean hasStateChange(ChapterBeatsEntity.Beat beat) {
         return beat != null && StringUtils.isNotBlank(beat.getInfoGain());
     }
@@ -131,15 +121,7 @@ public class ChapterBeatsService {
         return sb.toString();
     }
 
-    /**
-     * 组装节拍 prompt。
-     *
-     * <p>⚠️ {@code contextText}（前情上下文）**必须给**：要求 3 早就写着"第一拍必须无缝承接上一章结尾"，
-     * 但此前 prompt 里根本没有上一章的任何内容——**指令承诺了模型做不到的事**，
-     * 于是它只能凭空想象上一章发生了什么（或干脆忽略这条要求）。
-     *
-     * @param contextText 紧邻本章之前的章节摘要（由调用方裁剪，避免把整段记忆前缀塞进来）
-     */
+
     private String buildPrompt(ChapterPlanItemEntity item, int globalNo, String contextText) {
         StringBuilder sb = new StringBuilder();
         sb.append("你是小说场景调度师。把以下章节计划拆解为 3-5 个有序的场景节拍，供写手逐拍扩写。")

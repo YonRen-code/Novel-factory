@@ -7,5 +7,7 @@ import lombok.Data;
  */
 @Data
 public class CheckpointCreateRequestDTO {
+
     private String name;
+
 }

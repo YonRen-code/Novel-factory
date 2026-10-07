@@ -31,11 +31,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 作业编排服务：异步提交 → 单线程 worker 执行 → 进度/取消/章节计划裁决/终态。
- * D9 个人用范围：只做触发/进度/取消/裁决，无列表/详情/导出；job-status.json 仅供崩溃后人工查看。
- * MDC trace-id 与 jobId 同源，生成期间全部日志与 LLM usage 记账按 job 归因
- */
+
 @Service
 @Slf4j
 public class StoryJobService {

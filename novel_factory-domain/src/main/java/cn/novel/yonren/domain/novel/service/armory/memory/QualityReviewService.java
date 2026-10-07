@@ -26,20 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 
-/**
- * 全书质量评分（2026-09-27）：每 N 章按**带版本号的固定 rubric** 抽样给近期正文打分，
- * 连同窗口机械指标追加写入 {@code memory/quality-trend.jsonl}。
- *
- * <p><b>它回答的问题</b>：逐章机械门禁（{@code quality/*Policy}）与批级体检回答"这一章有没有坏"，
- * 本书级趋势线回答"这本书在变好还是变差"。缺了后者，任何 prompt / 模型 / 预算调整都无法归因——
- * 这正是此前"只能换模型赌一把"的根源。
- *
- * <p><b>全程 fail-soft</b>：度量工具坏了不该拖垮生产线。模型调用失败、输出无法解析、趋势行落盘失败，
- * 一律只告警并放弃本次评分，绝不向上抛异常。评分失败不影响已生成章节的任何状态。
- *
- * <p><b>rubric 版本随行落盘</b>：分数只有同一把尺子下才可比，故每行都带 {@code rubricVersion}；
- * 改动评分维度或判据措辞必须递增版本号，否则趋势线会把两把尺子的读数混成一条曲线。
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -57,17 +44,7 @@ public class QualityReviewService {
     private final IStoryRepository storyRepository;
     private final QualityReviewProperties properties;
 
-    /**
-     * 对一个评分窗口（最近 {@code interval-chapters} 章）抽样评分并落盘趋势行。
-     *
-     * <p>调用方负责按 {@code globalNo % intervalChapters == 0} 决定是否触发；本方法内部再校验一次
-     * 窗口内是否真的存在章节文件（跨批续写时窗口首段可能落在上一批）。
-     *
-     * @param storyDir  已校验的故事目录
-     * @param storyVO   提供模型路由配置；module 缺失时直接跳过
-     * @param summaries 截至当前的章节摘要（取窗口机械指标）
-     * @param windowEnd 窗口末章号（通常即刚完成的章）
-     */
+
     public void reviewWindow(Path storyDir, StoryVO storyVO, List<ChapterSummaryEntity> summaries, int windowEnd) {
         if (!properties.isEnabled() || storyDir == null || storyVO == null || storyVO.getModule() == null) {
             return;

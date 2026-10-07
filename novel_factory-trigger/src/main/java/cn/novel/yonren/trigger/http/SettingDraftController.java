@@ -15,16 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * 设定集草稿端点：一键生成整套设定（尤其故事概述），或只重生成其中某几个字段。
- *
- * <p>刻意做成**同步端点且不进作业队列**：它是一次 LLM 调用、零落盘副作用（结果只回填前端表单），
- * 与 {@code /api/story/generate-chapter} 那种"阻塞到全批结束"完全不是一个量级，
- * 也不会去碰单线程的 {@code jobExecutor} 而冻住排队中的生成作业。
- *
- * <p>产出仍是"草稿"：由人看过、改过（或要求重新生成）之后再走 {@code /api/jobs} 提交，
- * 因此这里不做任何闸门与校验——校验留给生成链既有的 {@code ValidateUserInputNode}。
- */
+
 @Slf4j
 @RestController
 @RequestMapping("/api/setting-draft")

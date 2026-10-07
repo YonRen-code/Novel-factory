@@ -6,12 +6,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 大纲偏离检测（机械预检，零 LLM）：章成后核对计划关键事件在正文中的词面覆盖率。
- * 口径与修订采纳闸门一致——「最长公共连续子串 ≥ 4 字」判覆盖（关键事件会被正文转化为剧情，
- * 整段字面命中几乎不可能）。词面匹配对转述有误报，因此低覆盖率只作为审校加审线索注入
- * （WARN 语义），不直接产出 BLOCKING——判定权留给审校。
- */
+
 public final class PlanAdherencePolicy {
 
     /** 覆盖率预警阈值：低于该值时给审校注入加审提示 */

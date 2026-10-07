@@ -108,37 +108,8 @@ public class ChapterMemoryService {
     /** 禁泄关键词总量封顶：防百章后清单线性膨胀 */
     private static final int SECRECY_KEYWORD_LIMIT = 12;
 
-    /**
-     * 过短的关键词不得进机械禁泄扫描：这类词常是伏笔的**主体**而非**谜底**，
-     * 逐字扫描会把正常叙事判成泄露。
-     *
-     * <p><b>2026-10-01 实测反例</b>：第 1 章伏笔「陆瑾瑜听到'表哥'二字时意识一紧」的
-     * payoffHints 里混进了字面词 {@code 表哥}。但它不是谜底——谜底是"表哥是谁、与前世何关"，
-     * 而"表哥"只是**这条疑问指向的那个人**。第 4 章标题《表哥的投资经》正是该伏笔的推进章，
-     * 正文必然出现"表哥"，于是被逐字扫描判成 BLOCKING 泄露。
-     *
-     * <p>真正的谜底词（"萝卜章""集资骗局""签到系统"）都 ≥3 字，2 字词几乎必是主体词，
-     * 故以 3 字为门槛。这会让少量真·二字谜底漏过机械层——由 LLM 审校兜底（同"未登记
-     * payoffHints 的存量伏笔自动跳过"的既有口径）。
-     */
     private static final int SECRECY_MIN_KEYWORD_CHARS = 3;
 
-    /**
-     * 禁泄词的最短保密跨度：埋设后不足该章数的伏笔**不进禁泄表**（2026-10-01 新增）。
-     *
-     * <p><b>为什么需要</b>：本机制隐含假设"伏笔有一段较长的保密窗口"，但实测写作节奏是
-     * <b>下一章就兑现</b>——第 10 章埋的伏笔（老顾论斤卖书、王秀兰买书钱）在第 11 章就逐字写出谜底，
-     * 跨度仅 1 章。这类伏笔的关键词几乎**必然**命中扫描，于是禁泄表持续产出 BLOCKING，
-     * 写手被迫把本该说清的信息改成含糊表述，信息传递效率反而下降。
-     *
-     * <p><b>豁免的是扫描，不是观测</b>：伏笔仍照常进伏笔账、照常参与卷末清账与揭示判定，
-     * 只是它的关键词不再进逐字扫描表。真正的问题（伏笔寿命过短）由规划层反馈治本
-     * ——见 {@code ChapterPlanPromptService.appendForeshadowSpanFeedback}。
-     * 机械扫描在这里只负责"别误拦正常兑现"，不负责评价伏笔写得好不好。
-     *
-     * <p>取值 2：跨度 1（本章埋、下章用）几乎都是正常推进，豁免；跨度 ≥2 仍进表。
-     * 若日后发现跨度 2 也普遍误拦，再上调——但**不要**为了少误拦而把真泄底一起放行。
-     */
     private static final int SECRECY_MIN_SPAN_CHAPTERS = 2;
 
     /**
@@ -224,17 +195,6 @@ public class ChapterMemoryService {
                         .longestCommonSubstring(event, foreshadow) >= REVEAL_MATCH_MIN_CHARS);
     }
 
-    /**
-     * 推进章判定：本章计划要"处理/了结"这条伏笔，但**还不揭示谜底**（摊牌、对质、骗局败露、上门闹事）。
-     *
-     * <p>与 {@link #isRevealChapter} 的区别：揭示章要求谜底被说出，故整条伏笔全部豁免；
-     * 推进章只说"这条线本章要动"，谜底仍未揭晓——理论上仍该禁泄谜底。
-     * 但**伏笔的主体词**（"表哥"这个人）必然出现在正文里，机械逐字扫描无法区分
-     * "主体词"与"谜底词"，所以整条豁免，改由 LLM 审校判"有没有顺手把谜底说破"。
-     *
-     * <p>2026-10-01 实测：第 4 章计划"亲戚骗局登场"，关键事件含"摊牌/对质"，
-     * 而第 1 章的"表哥"伏笔被逐字判成泄露——正是缺了这条豁免。
-     */
     private boolean isAdvanceChapter(List<String> normalizedKeyEvents, String foreshadowContent) {
         if (normalizedKeyEvents.isEmpty() || StringUtils.isBlank(foreshadowContent)) {
             return false;
@@ -306,14 +266,6 @@ public class ChapterMemoryService {
                 qualityDebts, stageBlueprint, volume, recallHits, null));
     }
 
-    /**
-     * 记忆前缀的分块视图（2026-09-28）：各节独立成块交由 PromptBudgetGuard 装配，不再整块交给总额守门——
-     * 单块只能"整体截尾"，而尾部恰是最近/纠错类内容（上章结尾 → 质量债 → 偏差警示 先被牺牲），
-     * 中部三账本/唤醒却与末态红线部分重复地更早保住，牺牲顺序与价值顺序相反。
-     * 拆分后牺牲顺序由 priority 决定（刻度见 PromptBudgetGuard 类注释），渲染顺序仍为旧版拼接顺序
-     *
-     * @param volume 当前章所属卷（调用方用 RollingOutlineService.volumeAt 按章号选取），可为 null
-     */
     public List<PromptBudgetGuard.Block> buildMemoryBlocks(List<ChapterSummaryEntity> summaries,
                                                            String prevChapterTail,
                                                            List<String> pendingConflicts,
@@ -354,16 +306,8 @@ public class ChapterMemoryService {
                     .append("仅当本章计划的关键事件明确包含突破/晋升时才允许变化，且变化必须有过程铺垫与代价。\n\n");
         }
         blocks.add(section("境界锁定", MEMORY_PRIORITY_REALM_LOCK, false, head));
-
-        // 时序锚：主角当前年龄与故事时间。与境界锁定同级、同样不可截断——
-        // 26-30 章批次因计划 prompt 里"当前月龄出现 0 次"，把圣经 band"21-30 章步入小学／自学高阶数学"
-        // 直接落到了十一个月大的婴儿身上（写数论证明、列乘法竖式）。年龄必须像境界一样每路显式锁定：
-        // 认知可超前、媒介不可超前。无年龄事实时**整块不加入**（不编造、也不留空标签占位）。
         String timeAnchor = ConsistencyIndexService.renderTimeAnchor(ordered);
         if (StringUtils.isNotBlank(timeAnchor)) {
-            // 时序锚 v2境界式）：年龄/时间升级为锁定值——禁止擅自增减，
-            // 唯一合法推进通道是计划声明的 timeAdvance（与【主角境界锁定】同一数据流）。
-            // 45 章时间冻结（2002 年 7 月走了 2-3 周）的根因就是旧锚只"描述推算"、无推进通道
             String locked = timeAnchor + "\n【时间锁】年龄/故事时间以上述值为准，禁止在正文中擅自增长、倒退或跳跃；"
                     + (StringUtils.isNotBlank(timeAdvance)
                             ? "本章计划允许推进至：" + timeAdvance + "（唯一合法推进通道，须有场景交代过夜/生日/学期跨越）。"
@@ -438,17 +382,6 @@ public class ChapterMemoryService {
         return blocks;
     }
 
-    /**
-     * 新书首段兜底：摘要为空时，把"设定兜底年龄锚"作为记忆首块（时序锚，priority 与境界锁定同级、
-     * 不可截断）追加进记忆块列表。
-     *
-     * <p><b>为什么需要</b>：{@link #buildMemoryBlocks} 以摘要为输入，无摘要时产不出年龄锚——
-     * 首段计划与第一章会在"零年龄约束"下生成（2026-10-03 实测：4 岁主角首段做出超龄行为，
-     * 且审校年龄判据因 guard 无锚而不触发）。年龄从故事设定保守提取，命中从严（见
-     * {@link ConsistencyIndexService#renderSettingsAgeAnchor}）。
-     *
-     * <p><b>有摘要时不追加</b>：以摘要锚为准，防止把故事起始年龄钉死在中期。
-     */
     public void prependSettingsAnchorIfNoSummaries(List<PromptBudgetGuard.Block> blocks,
                                                    List<ChapterSummaryEntity> summaries,
                                                    String worldSetting, String protagonist, String outline) {
@@ -468,20 +401,6 @@ public class ChapterMemoryService {
     private static final int MEMORY_PRIORITY_DIRECTION = 3;
     private static final int MEMORY_PRIORITY_LEDGER = 4;
 
-    /**
-     * 久远回唤的优先级：2026-09-29 由 6 提到 4，2026-10-01 又由 4 降至 <b>5</b>。
-     *
-     * <p><b>提到 4 的理由（仍然成立）</b>：三账本只覆盖最近 {@link #ACTIVE_WINDOW} 章的活跃窗口，
-     * 超过窗口的历史除了被裁掉的近章摘要，**唯一通路就是回唤**——把它排在账本之后丢弃，
-     * 等于"预算一紧就先忘记远期、保留近期"，与长篇连载对长程一致性的需求方向相反。
-     *
-     * <p><b>为什么又降回 5（2026-10-01 实测）</b>：第 8/12/13 章连续出现
-     * 「丢弃[疲劳词红线、审校反馈、风格警示、情节模式黑名单]」——降回 5 是为了给这三块**行为指导**让位。
-     * 两者的代价不对等：行为指导块每章都被写手消费，缺一块就直接导致同类问题**每章重犯**
-     * （同批超长章与禁泄违例连续三批反复发作，高度怀疑与此相关）；
-     * 而回唤只是背景补完，缺一两章不破坏连贯。回唤仍**高于**文风指纹(7)与情节模式黑名单(8)，
-     * 并未退回最早的"最先被牺牲"位置。
-     */
     private static final int MEMORY_PRIORITY_RECALL = 5;
 
     /** 记忆节 → 装配块：内容两端空白归一（块间距由装配器分隔符统一负责）；空白节由装配器过滤 */
@@ -494,18 +413,6 @@ public class ChapterMemoryService {
     /** 单个实体档案的字符封顶（超出截断，档案是增益件不挤占记忆预算） */
     static final int DOSSIER_CHARS = 260;
 
-    /**
-     * 实体档案块（docs/enhancement-plan.md E1）：休眠超过 {@link #ACTIVE_WINDOW} 章的实体，
-     * 其早期设定与当前状态既不在近章摘要窗口内，语义检索也未必按名词精确命中——
-     * 本块把休眠实体的 首见章/上次出现/当前状态/关联关系/早期事实 组装成档案注入。
-     *
-     * <p>两种模式：{@code item} 非空（正文路径）=只注入本章计划涉及的实体
-     * （characters 精确命中 + goal/keyEvents/endingHook 文本包含 + 别名词典命中）；
-     * {@code item} 为空（规划路径）=注入最久未见的休眠实体——规划层据此安排"谁重新出场"，
-     * 避免配角蒸发。封顶 {@link #DOSSIER_LIMIT} 个，按最久未见优先。
-     * 休眠判定复用 {@code buildLedger} 的 lastChapterNo 语义（每次提及刷新）。
-     * 三账本为空或无休眠实体时返回空列表（首发/冷启动不注入）。
-     */
     public List<PromptBudgetGuard.Block> buildEntityDossierBlocks(List<ChapterSummaryEntity> summaries,
                                                                   ChapterPlanItemEntity item,
                                                                   ConsistencyIndexEntity index) {
@@ -748,12 +655,6 @@ public class ChapterMemoryService {
     /** 末态红线携带的持有物条数上限（按最近更新章号取最新） */
     private static final int EDGE_STATE_ITEM_LIMIT = 5;
 
-    /**
-     * 账本末态红线：从账本提炼"截至上一章结束时"的主角位置/境界/持有关键物，一行式硬约束。
-     * 治"正文开头承接上一幕、账本记录章末状态"的衔接类矛盾——连续 9 章 consistency 债的
-     * 复发根因是这三要素被几十行账本淹没，单独置顶让正文与修订都有明确的对齐锚点。
-     * 无任何可提炼事实时返回空串（第 1 章前）
-     */
     public String renderLedgerEdgeState(List<ChapterSummaryEntity> summaries) {
         if (summaries == null || summaries.isEmpty()) {
             return "";

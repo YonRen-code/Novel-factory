@@ -11,21 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
-/**
- * 无人值守续写计划（RunPlan）：决定"这批写完了要不要接着写下一批，为什么"。
- *
- * <p><b>为什么需要</b>：此前作业终态只有 COMPLETED / FAILED / CANCELLED，
- * <em>没有批次概念</em>——每批跑完必须人工再点一次提交。实测 26 次提交 / 20 个唯一批次区间，
- * 其中 4 个区间被重复提交（第 74-90 章提交 4 次），这就是"人工监守"的真实成本。
- * 自续批把这段人工动作变成机械规则。
- *
- * <p><b>停机条件是本类的全部价值</b>：挂机最怕的不是停不下来，而是<em>该停的时候不停</em>。
- * 因此每一条续批都要求"四个条件全部通过"：未达标、未超续批上限、批末体检未达停线、未取消/未熔断
- * （后两条由作业层在提交前把守）。任何一条不满足都返回 {@code continueNext=false} 并带上人类可读理由，
- * 落到作业状态里——这样"为什么停了"永远可归因，不需要翻日志。
- *
- * <p>本类不做 IO、不调模型：输入是已算好的进度与体检结论，输出是一个决策 + 一条可复用的命令。
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -93,12 +79,7 @@ public class RunPlanService {
         return null;
     }
 
-    /**
-     * 生成下一批的命令：克隆原请求并指向已完成的故事目录。
-     *
-     * <p>批大小取 run-plan.batch-size（未配置则沿用原请求的 chapterCount），并按剩余章数收敛——
-     * 不依赖"到顶保护"来兜最后一批：让请求本身就精确，日志与批次区间才可读。
-     */
+
     public ArmoryCommandEntity nextBatchCommand(ArmoryCommandEntity current, String storyDirName, int chaptersDone) {
         if (current == null || StringUtils.isBlank(storyDirName)) {
             return null;

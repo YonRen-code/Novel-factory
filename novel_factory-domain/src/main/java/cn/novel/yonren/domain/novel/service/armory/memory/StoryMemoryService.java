@@ -35,17 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/**
- * 故事记忆层：二期（跨章剧情记忆）与三期（人物/世界观记忆）共用一套向量通道。
- * 每章检查点把本章摘要、最新三账本条目、story-bible 幂等写入集合 novel-memory-{故事目录名}；
- * 五期扩展：worldId 合法时 bible 点另写 novel-world-{worldId}（仅 bible 共享，chapter/ledger 故事私有）。
- * 写新章 / 规划批次前按相关性检索唤醒久远记忆，由 ChapterMemoryService 渲染进记忆前缀。
- * 相关性门控（minScore）+ 字符预算（maxRecallChars）贯彻反注水原则；
- * 检索链路失败语义（2026-09-28 细化）：**瞬时失败先做有界重试**（限流/5xx/网络 IO/向量库调用异常，
- * 上限见 retrieve-max-attempts），重试耗尽或确定性失败（欠费/鉴权/参数/未配置）仍终止作业——
- * llm 降级与静默跳过的质量不可接受（静默跳过会让整批在无记忆前缀下跑完，产出上看不出来）；
- * 仅索引写入路径保持 fail-soft 告警（失败点可由下次幂等写入补齐）
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -59,24 +49,13 @@ public class StoryMemoryService {
     private static final int EMBED_BATCH = 16;
     private static final Pattern WORLD_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$");
 
-    /**
-     * 检索查询串安全上限（字符）：查询只需主题相关性，不需要全文保真。
-     * 无界查询（如规划查询拼入整个 storyContext）会被 embedding 供应商按参数错误拒绝
-     * （智谱 400/1210），导致该路检索静默失效（fail-soft 跳过、唤醒恒为 0）——
-     * 在网关入口统一截断兜底，任何查询构造方超长都不再致命
-     */
+
     private static final int MAX_QUERY_CHARS = 1200;
     /** buildPlanQuery 内 storyContext 贡献段截断（预留任务/目标段预算） */
     private static final int PLAN_QUERY_CONTEXT_CHARS = 500;
     /** buildPlanQuery 内阶段任务拼接段截断 */
     private static final int PLAN_QUERY_TASKS_CHARS = 400;
 
-    /**
-     * 单个记忆点的目标字符数（2026-09-27 切块）：此前"一章一个点、整份 bible 一个点"，
-     * 单点可达 2000~3000 字，导致唤醒预算实际绑不住（首条整条放进前缀），
-     * 且检索粒度太粗——命中一整章会把无关内容也一起拉进来。
-     * 现按句边界切成 ~600 字的点，预算才真正可绑定、召回也更精准。
-     */
     private static final int MEM_CHUNK_CHARS = 600;
 
     /** 切块标记：与"点边界"相关（只用于拼接时的自然断句），不计入语义 */
@@ -163,13 +142,6 @@ public class StoryMemoryService {
         }
     }
 
-    /**
-     * 整集合重建：先清空集合（连旧键的残留点一起清掉），再用当前模型与当前切分方案重新索引全部章节。
-     *
-     * <p>必须清空而非就地覆盖：切块后键名变了（{@code #chapter#3} → {@code #chapter#3#0}），
-     * 只 upsert 会让新旧两套键同时存在，检索命中重复内容。
-     * 全量重建的成本是"每章一个点 + 账本 + 设定"，一次批量 embedding，相对一次章节生成可忽略。
-     */
     public void rebuild(StoryVO.Module module, Path storyDir,
                         List<ChapterSummaryEntity> summaries, String worldId) {
         if (!enabled(module, storyDir) || summaries == null || summaries.isEmpty()) {
@@ -207,12 +179,6 @@ public class StoryMemoryService {
         }
     }
 
-    /**
-     * 是否需要整集合重建：索引元数据缺失（老故事首次接入）或签名不符。
-     *
-     * <p>元数据缺失时分两种情况：全新建书（只有 1 章）视为正常首建，直接索引即可；
-     * 已有历史章节却无元数据，则无法确认集合里的向量出自哪个模型/哪版切分方案，保守重建。
-     */
     private boolean needsRebuild(StoryVO.Module module, Path storyDir, List<ChapterSummaryEntity> summaries) {
         String actual = indexSignature(module);
         String recorded = readIndexSignature(storyDir);
@@ -339,14 +305,7 @@ public class StoryMemoryService {
         return retrieveWithOutcome(module, storyDir, queryText, minChapterNo, worldId).hits();
     }
 
-    /**
-     * 带**降级状态**的检索重载（2026-09-29）。
-     *
-     * <p>存在的理由：降级与"真无命中"返回的命中表**完全一样**（都是空表），调用方据此区分不了，
-     * 于是"本批有几章是在无记忆前缀下裸跑的"只能靠人翻日志。调用方（ChapterWorker）把 degraded
-     * 记到本章摘要的机械标记上，由体检汇总成指标——质量债是回灌给写手的"你上章犯的错"，
-     * 基础设施抖动塞进去等于给模型下错误指令，故不走那条通道。
-     */
+
     public RecallOutcome retrieveWithOutcome(StoryVO.Module module, Path storyDir,
                                              String queryText, Integer minChapterNo, String worldId) {
         return retrieveWithOutcome(module, storyDir, queryText, minChapterNo, worldId, null);
@@ -365,17 +324,6 @@ public class StoryMemoryService {
         }
     }
 
-    /**
-     * 检索（可指定 onlyKind 只召回某类记忆点：null=全部，VOLUME=卷方向）。
-     * 其余语义与五参重载一致。
-     *
-     * <p>失败语义（2026-09-29 统一为"降级留痕"）：瞬时失败先做有界重试（判定见
-     * {@link #isRetryableRetrievalFailure}），
-     * 重试耗尽或确定性失败（欠费/鉴权/参数/未配置）时**降级为空召回并 WARN 留痕**，不终止作业——
-     * 记忆唤醒是增强件；主链路 LLM 调用的欠费/鉴权失败会自行暴露，检索层无需代劳终止。
-     * 降级可 grep RECALL_DEGRADED 归因，与"降级必留痕"的既有口径一致（非静默）。
-     * 作业取消（线程中断）不降级也不重试，立即上抛交由上层收敛
-     */
     public RecallOutcome retrieveWithOutcome(StoryVO.Module module, Path storyDir,
                                              String queryText, Integer minChapterNo, String worldId, String onlyKind) {
         if (!enabled(module, storyDir) || StringUtils.isBlank(queryText)) {

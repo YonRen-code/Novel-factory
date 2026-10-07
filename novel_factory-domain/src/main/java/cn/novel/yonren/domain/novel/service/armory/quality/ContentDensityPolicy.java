@@ -3,11 +3,6 @@ package cn.novel.yonren.domain.novel.service.armory.quality;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 内容密度机械检测策略（零 LLM 调用）。
- * 统计正文中的有效对话句数，低于最低要求时渲染审校预警（WARN 语义，不直接 BLOCKING）。
- * 对话句数统计：匹配中文引号（""「」『』）包裹的对话内容，每对引号计为一句。
- */
 public final class ContentDensityPolicy {
 
     private ContentDensityPolicy() { }

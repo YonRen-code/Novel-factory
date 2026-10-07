@@ -17,18 +17,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 章节计划段规划执行器：一次"规划一段"的完整闭环——
- * 分支推演（若启用）→ 三级降级解析 + 章数纠错重试 → 结构校验 → 段内编号平移 → 主线推进闸门。
- *
- * <p>此前同样的闭环有三份平行实现：链式路径（CallChapterPlanLlmNode 内）、
- * worker 惰性路径（静态 planSegmentForWorker）、以及散落在 worker 的闸门块——
- * 分支推演只有链式路径有，闸门措辞与触发口径各自演化。合并后两条路径
- * （树内链式 / worker 惰性）共用本类，能力与口径天然一致。
- *
- * <p>计划是核心交付物、无降级替身——任一段全败抛异常终止本批
- * （已完成章节已通过逐章检查点落盘，可携带 resumeStoryDir 续写补齐）。
- */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -108,9 +96,6 @@ public class ChapterPlanSegmentPlanner {
                 ladderIssue == null ? "-" : ladderIssue,
                 mainLineIssue == null ? "-" : mainLineIssue,
                 timeAdvanceIssue == null ? "-" : timeAdvanceIssue);
-        // 重规划跳过分支推演：打回反馈已具体到"第 N 章起推进档位"，
-        // 方向不需要重新探索——重跑双稿+评审只是每次打回多烧 3 次思考调用
-        //（实测 kimi-k3 一轮打回放大出 6 次 10 分钟级调用）。首次规划仍走完整分支推演
         PlannedSegment retry = invokeWithFallback(storyVO, ctx,
                 prompt + feedback, label, expected, usedPromptMap, false);
         ChapterPlanChecks.normalizeChapterNumbers(retry.plan(), startChapter - 1);

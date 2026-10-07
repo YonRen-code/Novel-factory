@@ -18,13 +18,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 动态参考资料服务：skill 式按需注入的编排入口——
- * 选择引擎二选一：LLM 索引选择（mode=llm，默认）或向量语义检索（mode=vector）。
- * vector 模式快速失败：链路任何失败都终止作业、绝不降级 LLM 选择（降级质量不可接受）。
- * 命中的资料加载全文包装为 PromptRule；选择结果按 场景+题材+风格+章节类型+模型接入+模式+索引版本 缓存，
- * LRU 封顶防无界膨胀；索引内容变化（资料增删/改写）自动失效
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor

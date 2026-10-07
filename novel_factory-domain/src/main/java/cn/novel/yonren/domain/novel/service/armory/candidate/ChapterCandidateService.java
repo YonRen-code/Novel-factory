@@ -182,32 +182,7 @@ public class ChapterCandidateService {
         }
     }
 
-    /**
-     * 候选选优的触发判定。
-     *
-     * <p><b>2026-10-01 修 DEBT 漏触发</b>：此前只认 {@code MINOR_RESIDUE} 与 {@code REVISED_PASS}
-     * 两种"低置信通过"，{@code DEBT}（修订耗尽仍有未修复 BLOCKING）落到 {@code default -> false}
-     * 被直接跳过。而这恰恰是**最需要换一个写法**的章节——原稿已经在同一方向上改了两轮仍不收敛，
-     * 说明问题不在措辞而在写法本身。
-     *
-     * <p>实测代价：2026-10-01 批次 5 章**全部** DEBT，候选一次都没启动，
-     * 每章白跑 2 轮 revise + 2 轮 audit-verify（10 次 patch 共 53k token）后仍是同样的稿。
-     *
-     * <p>仍受 {@code candidate.enabled} 总开关约束（见 {@link #challenge}），
-     * 未配置第二模型族时不会空转。{@code DEBT} 无独立开关——它没有"要不要触发"的合理默认，
-     * 只有一个正确答案：触发。
-     *
-     * <p><b>2026-10-02：MINOR_RESIDUE 与 DEBT 双双关闭</b>（见 {@code CandidateProperties} 各自字段的注释）。
-     * 本批实测的采纳率分布是唯一依据：
-     * <pre>
-     *   REVISED_PASS   66.7%   ← 唯一有效的信号
-     *   MINOR_RESIDUE  42.9%
-     *   DEBT            0%     ← 纯烧钱
-     * </pre>
-     * MINOR 关闭的理由是"条数门槛无判别力"（两批中位数均为 6，调门槛只是挪切点）；
-     * DEBT 关闭的理由是"代价确定、收益 0/3"（挑战者与守卫者撞同一堵墙）。
-     * 两个开关都保留，可在积累更多样本后重新打开。
-     */
+
     private boolean triggered(GateResult gate, StoryProperties.CandidateProperties props) {
         return switch (gate.grade()) {
             // "有 MINOR" 不等于"值得整章重写"——条数无判别力（实测两批中位数均 6），故默认关闭
@@ -308,17 +283,6 @@ public class ChapterCandidateService {
     /** 盲评事实基线取最近几章（2 章足够覆盖"上一章结尾状态 + 当前认知边界"） */
     private static final int FACT_BASELINE_CHAPTERS = 2;
 
-    /**
-     * 候选盲评用的事实基线：最近若干章的剧情摘要 + 三账本状态串（与
-     * {@code StageExitReviewService} 的可核验文本同源）。
-     *
-     * <p><b>为什么必须补</b>：盲评原先只拿到【章节计划 + 两稿正文】，既没有记忆也没有账本，
-     * 因此<em>结构上不可能</em>发现"身份映射被改写""认知状态提前升级""已确认事实被否定"
-     * 这类错误，只能比较文风——实测第 9、10 章的挑战者正是这样胜出的。
-     * 补上基线后，评审才具备事实核对的依据。
-     *
-     * @return 基线文本；无历史章节（开篇）时返回 null，由 prompt 渲染成"无既知事实约束"
-     */
     private String buildFactBaseline(List<ChapterSummaryEntity> summaries, int globalNo) {
         if (summaries == null || summaries.isEmpty()) {
             return null;
@@ -377,13 +341,7 @@ public class ChapterCandidateService {
         }
     }
 
-    /**
-     * 机械排序：先滤掉机械门禁命中的稿，再取有效字数最高者；全部命中返回 null。
-     *
-     * <p>字数下限（2026-10-04）：挑战者有效字 &lt; 原稿 × {@link #CHALLENGER_MIN_LENGTH_RATIO}
-     * 或（原稿未达参考线时）&lt; 原稿自身长度即出局——盲评明令"不评长短"，
-     * 短稿在盲评里结构性占优（11-20 章实测 5 次缩水采纳：ch15 -50%、ch19 -42%、ch20 -34%）。
-     */
+
     private ChapterContentEntity mechanicalBest(List<ChapterContentEntity> challengers, int incumbentChars) {
         // 下限以原稿为基准而非绝对 1500：原稿本就短时，拒绝更长的挑战者只会更糟——本闸防"缩水采纳"，
         // 不防"升级"；原稿自身的绝对不足由 QualityGate 密度信号回灌规划层治理。
@@ -399,12 +357,7 @@ public class ChapterCandidateService {
     /** 挑战者相对原稿的最短比例：低于即判缩水出局（0.6 = 缩水 40%，结构已伤） */
     private static final double CHALLENGER_MIN_LENGTH_RATIO = 0.6;
 
-    /**
-     * 异模型盲评：两稿裸正文随机定为 A/B（剥离来源信息防自偏好），只评文风与计划事件覆盖，
-     * 明令不评长短详略。空响应/解析失败自动重试一次（deepseek 等思考型模型偶发
-     * "HTTP 200 但正文为空、token 全在思维链"的响应，实测 ch32 踩中）；两次均失败时
-     * 返回 verdict=null 并携带最后一次原始输出（截断）供样本留痕复盘
-     */
+
     private JudgeAttempt judge(StoryVO storyVO, ChapterPlanItemEntity item,
                                String incumbent, String challenger, int globalNo,
                                String factBaseline, String registerBaseline) {

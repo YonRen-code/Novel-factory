@@ -4,15 +4,7 @@ import lombok.Data;
 
 import java.util.List;
 
-/**
- * 设定集草稿响应：一套可直接回填生成表单的字段。
- *
- * <p>字段名与前端表单键的对应关系（前端负责映射）：
- * {@code novelTitle→novel_title}、{@code totalChapters→maxChapterCount}，其余同名。
- *
- * <p>另有两点用法约定：值为 {@code null} 表示该字段本次没有产出，前端应**保持输入框原样**、
- * 不要清空；{@code regenerated} 标明本次真正重生成的字段，供前端决定"回填全部"还是"只回填某一个"。
- */
+
 @Data
 public class SettingDraftResponseDTO {
 

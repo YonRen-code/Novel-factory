@@ -43,14 +43,6 @@ public class GenerationJob {
 
     private String errorMessage;
 
-    /**
-     * 每章墙钟耗时（毫秒），观测用。**键必须是 String**：
-     * 本对象由 fastjson2 序列化进 job-status.json，而 fastjson2 对非字符串键默认写成
-     * <em>不带引号</em> 的形式（{@code {1:114150}}），产出的是**非法 JSON**——
-     * 文件扩展名是 .json 却让任何严格解析器（Jackson / json.load / jq）直接报错。
-     * JSON 对象的键本就是字符串，用 Integer 作键在这里没有收益，只会让写出物不合规。
-     * 旧文件里的 {@code {1:…}} 仍可被 fastjson2 宽松解析，读取侧向后兼容。
-     */
     private Map<String, Long> chapterDurations;
 
     /** 协作取消信号：worker 每章迭代开头检查，当前章完成后停 */
@@ -128,15 +120,6 @@ public class GenerationJob {
         return true;
     }
 
-    /**
-     * 退出审批等待（仅 AWAITING_APPROVAL 可进入）：回到 CREATED 让同一作业复用，
-     * 从而复用同一个 jobId 与同一个 run 目录继续跑剩余阶段。
-     * 人工通过 / 人工驳回 / 超时放行 / 超时中止四条出路都经此迁移，
-     * 保证状态机不出现第四种终局
-     *
-     * <p>本方法**只做状态迁移、不做计数**：计数与否取决于"是不是人做的决定"，
-     * 由 {@link #recordHumanApproval()} 单独承担，避免超时放行被误记为人工裁决
-     */
     public synchronized boolean exitApprovalWait() {
         if (status != JobStatus.AWAITING_APPROVAL) {
             return false;

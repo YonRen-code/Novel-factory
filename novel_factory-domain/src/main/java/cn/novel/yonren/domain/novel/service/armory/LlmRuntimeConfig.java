@@ -25,15 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * LLM 运行时配置覆盖：前端设置面板写入的 baseUrl/apiKey/model/maxTokens 以运行时覆盖形式生效。
- * 覆盖持久化到 data/llm-config-override.json（与 llm-usage.jsonl 同目录约定），进程重启后自动加载；
- * 未设置覆盖时 applyXxx 原样返回，实际调用完全不受影响（仍走 novel-generation.yml 静态配置）。
- * 覆盖只影响 LLM 调用链路（SpringAiLlmGateway），Embedding 供应商配置独立、不在此列。
- * apiKey 即 OpenAI 兼容 API 的 Bearer Token，单一字段承载（不回显原文，仅存覆盖态）。
- * 分场景覆盖（scenes）：key 为 ModelScene.configKey，按字段与全局覆盖分层——
- * 场景覆盖 > 全局覆盖 > yml 静态（场景条目缺项回落统一 chat-model，由网关 resolveChatModel 先行解析）
- */
+
 @Slf4j
 @Component
 public class LlmRuntimeConfig {

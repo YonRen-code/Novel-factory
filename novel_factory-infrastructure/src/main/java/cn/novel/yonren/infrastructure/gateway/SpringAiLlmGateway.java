@@ -91,11 +91,6 @@ public class SpringAiLlmGateway implements LlmGateway {
         this.requestFactory = HttpTimeouts.requestFactory(connectTimeoutSeconds, readTimeoutSeconds);
         this.retryTemplate = RetryTemplate.builder()
                 .maxAttempts(maxAttempts)
-                // 5xx 类瞬时异常 + 连接型异常（Connection reset/超时）都重试：连接抖动多为瞬时，
-                // 一次重试大概率自愈；否则跨阶段巨型规划调用会被单次 reset 直接打穿，整批 job 失败
-                // CancellationException：读超时由 JdkClientHttpRequest$TimeoutHandler 取消 future 产生，
-                // 既不是 IOException 也不是 ResourceAccessException，不列入则"超时"退化为"直接判死整批 job"。
-                // 取消是协作式（只置 volatile 标志、不中断线程），故此处不会与用户取消混淆。
                 .retryOn(java.util.List.of(TransientAiException.class, ResourceAccessException.class,
                         java.util.concurrent.CancellationException.class,
                         java.net.http.HttpTimeoutException.class))
@@ -130,16 +125,6 @@ public class SpringAiLlmGateway implements LlmGateway {
             } catch (Exception e) {
                 recordUsage(effective, selected, call, null, System.currentTimeMillis() - start, null, e);
                 boolean hasNext = i + 1 < chain.size();
-                // 换模型的适用条件：**唯一不该换的是内容审计命中**（与模型无关，换了也大概率不过）。
-                // 其余一律允许换——同族/跨族重跑一份相同请求，是"模型不存在 / 参数被拒 / 额度耗尽 /
-                // 供应商内部故障（500 · engine abort）"这几类**唯一有效的处置**，而它们恰好都是
-                // 「同一模型原样重试必然再失败」的场景。
-                // 修正：此前调 LlmErrorClassifier.shouldFallbackToAnotherModel，
-                // 它按 isModelLevel() 判定，而瞬时故障（TRANSIENT）与无法归类（UNKNOWN）都是
-                // modelLevel=false → 不换模型 → 由传输层原样重试同一模型。对**瞬时抖动**这是对的
-                // （换模型是白花钱），但传输层只重试 2 次、间隔极短，而思考模型被上游掐断这类故障
-                // 需要的是"换个端点重跑"而不是"原地再等一次"；更要命的是整批终止的代价极高。
-                // 权衡后取"宁可多花一次调用的钱，也不要让整批死在一次上游抖动上"。
                 if (!hasNext || !shouldFallback(e)) {
                     throw e;
                 }
@@ -192,23 +177,13 @@ public class SpringAiLlmGateway implements LlmGateway {
         return chatModelCache.computeIfAbsent(chatModelCacheKey(api, selected), k -> buildChatModel(api, selected));
     }
 
-    /**
-     * 模型客户端缓存键（包级可见供单测）：必须覆盖 buildChatModel 固化的全部参数——
-     * temperature 缺失曾导致同 model+maxTokens 不同温度的场景（如 summary 0.2 / chapter-content 0.5）
-     * 复用同一客户端，先构建者的温度对后者生效
-     */
+
     static String chatModelCacheKey(StoryVO.Module.AiApi api, StoryVO.Module.ChatModel selected) {
         return api.getBaseUrl() + "|" + api.getApiKey() + "|" + api.getZeroDataRetention()
                 + "|" + selected.getModel() + "|" + selected.getMaxTokens()
                 + "|" + selected.getEnableThinking() + "|" + selected.getTemperature();
     }
 
-    /**
-     * 场景级 API 解析：scene-models 条目自带 base-url/api-key（第二模型族，如 chapter-judge 指向
-     * DeepSeek）时优先生效，缺一项回落 module 级 ai-api 对应项；均未配置原样返回 module 级。
-     * completionsPath 支持场景级覆盖（智谱 GLM 的 chat 路径为 /chat/completions，无 /v1 前缀），
-     * 未覆盖时继承 module 级
-     */
     private static StoryVO.Module.AiApi effectiveApi(StoryVO.Module module, StoryVO.Module.ChatModel selected) {
         StoryVO.Module.AiApi fallback = module.getAiApi();
         boolean hasSceneApi = selected != null
@@ -235,10 +210,6 @@ public class SpringAiLlmGateway implements LlmGateway {
         if (StringUtils.isNotBlank(api.getCompletionsPath())) {
             apiBuilder.completionsPath(api.getCompletionsPath());
         }
-        // 关闭思考模式：enable_thinking 是 DashScope 专属语义（非 OpenAI 标准参数），
-        // 仅对 DashScope 端点注入——发给智谱/Moonshot 等其他供应商会被 400 拒绝
-        // 实测：glm-5.3 场景继承基座 enable-thinking=false，注入后被拒整链降级）。
-        // 场景条目若覆盖了非 DashScope 的 base-url，即使继承 false 也不再注入
         boolean dashscopeEndpoint = StringUtils.contains(
                 StringUtils.defaultString(selected.getBaseUrl(), api.getBaseUrl()), "dashscope");
         if (Boolean.FALSE.equals(selected.getEnableThinking()) && dashscopeEndpoint) {
@@ -264,13 +235,6 @@ public class SpringAiLlmGateway implements LlmGateway {
                 .build();
     }
 
-    /**
-     * 判断一次失败是否值得换下一个模型（场景级降级链的适用条件）。
-     *
-     * <p><b>唯一不该换的是内容审计命中</b>：它是内容问题而非模型问题，换模型大概率同样不过，
-     * 白烧一次调用还可能把内容问题掩盖成"降级成功"。其余失败一律允许换模型——
-     * 供应商侧的抖动/内部故障/参数被拒/额度耗尽，重跑一份相同请求到另一个端点是唯一有效处置。
-     */
     private static boolean shouldFallback(Throwable e) {
         return LlmErrorClassifier.classify(e) != LlmErrorClassifier.Kind.CONTENT_POLICY;
     }
@@ -292,12 +256,7 @@ public class SpringAiLlmGateway implements LlmGateway {
         return "-";
     }
 
-    /**
-     * 构建聊天请求 RestClient.Builder：按配置发送 Command Code ZDR 请求头，并可在请求体顶层注入
-     * {@code enable_thinking=false}。思考参数仅对 chat/completions 路径生效，解析失败时原样透传，绝不阻断主流程。
-     * 注意：try 只包请求体的 JSON 变换——网络异常必须正常上抛交给传输层重试/记账，
-     * 绝不能在此兜底重发（会误报"注入失败"且可能双发计费）
-     */
+
     private RestClient.Builder chatRestClientBuilder(StoryVO.Module.AiApi api, boolean disableThinking) {
         // 本模型实例是否已确认拒绝 enable_thinking（强制思考模型如 glm-5.3/kimi-k3：注入即 400）。
         // 记住后本实例后续请求直接跳过注入，省一次 400 往返；chatModel 缓存按配置建实例，状态随实例存活
@@ -356,11 +315,6 @@ public class SpringAiLlmGateway implements LlmGateway {
         return builder.build();
     }
 
-    /**
-     * 追加一行 usage 记账（JSONL）。失败仅告警，绝不影响生成主流程。
-     * jobId 取自 MDC trace-id：本方法在 worker 线程的调用链内同步执行，异步作业期间 MDC 必然已就位，
-     * 同步调试路径无 MDC 则该字段缺省
-     */
     private void recordUsage(StoryVO.Module module, StoryVO.Module.ChatModel selected, LlmCall call,
                              String content, long durationMs, Usage usage, Exception error) {
         try {

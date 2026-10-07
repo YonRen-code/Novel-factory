@@ -21,15 +21,6 @@ public enum ModelScene {
     /** 章节审校 */
     CHAPTER_AUDIT("audit", "章节审校"),
 
-    /**
-     * 段落密度审校（2026-10-04 从 audit 场景拆出）：机械补丁任务——输入本章正文、
-     * 输出至多 3 条改写补丁，输出仅数百字，但每章一次。
-     *
-     * <p>拆出理由：此前复用 audit 场景模型（qwen3.7-max-preview，强制思考、
-     * {@code enable-thinking:false} 被供应商拒绝），思维链 token 占单次调用的 ~2/3
-     * （实测 4.8k 字输入 / 700 字输出实付 7-9.5k token），5 章 ≈ 3 万 token 纯税。
-     * 拆出后配非思考免费档，机械任务零质量风险。
-     */
     PARAGRAPH_AUDIT("paragraph-audit", "段落密度审校"),
 
     /** 章节修订 */
@@ -63,14 +54,6 @@ public enum ModelScene {
     /** 动态资料选择器 */
     REFERENCE_SELECT("ref-select", "动态资料选择"),
 
-    /**
-     * 全书质量评分（2026-09-27 新增）：每 N 章按**带版本号的固定 rubric** 给近期正文章节打分，
-     * 连同机械指标落成趋势线（memory/quality-trend.jsonl）。
-     *
-     * <p>存在的理由：此前只有逐章机械门禁与批级体检，都是"这一章有没有坏"，没有"这本书在变好还是变差"。
-     * 缺少全书级度量时，任何 prompt/模型调整都无法归因，只能靠感觉与换模型来赌。
-     * 低频（每 10 章一次，每次抽若干章）、输出量小，故单列场景以便成本与效果独立核算。
-     */
     QUALITY_REVIEW("quality-review", "全书质量评分");
 
     private final String configKey;

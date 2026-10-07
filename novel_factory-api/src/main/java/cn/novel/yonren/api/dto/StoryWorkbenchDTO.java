@@ -10,26 +10,47 @@ import java.util.List;
  */
 @Data
 public class StoryWorkbenchDTO {
+
     private String storyDirName;
+
     private String novelTitle;
+
     private String storyOverview;
+
     private int chapterCount;
+
     private String storyPhase;
+
     private boolean finalVolumeDeclared;
+
     private Integer estimatedTotalChapters;
+
     private Integer estimatedRemainingChaptersMin;
+
     private Integer estimatedRemainingChaptersMax;
+
     private List<String> remainingFinaleBeats = new ArrayList<>();
+
     private List<String> completedFinaleBeats = new ArrayList<>();
+
     private boolean activeJob;
+
     private Integer latestChapterNo;
+
     private int latestChapterLength;
+
     private List<LedgerDTO> characters = new ArrayList<>();
+
     private List<LedgerDTO> items = new ArrayList<>();
+
     private List<LedgerDTO> factions = new ArrayList<>();
+
     private List<ForeshadowDTO> foreshadowing = new ArrayList<>();
+
     private List<PendingFactDTO> pendingFacts = new ArrayList<>();
+
     private List<QualityDebtDTO> qualityDebts = new ArrayList<>();
+
     private WorkbenchMetrics metrics = new WorkbenchMetrics();
 
     @Data

@@ -24,13 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 阶段退出条件核验服务：阶段末章完成后，对照章节记忆逐条核验退出条件是否达成。
- * 治"模型给自己批作业"——上一版蓝图 carriedTasks 的完成/进行中是模型自评，
- * 退出条件核验是外部审计：达成必须给出可机械校验的证据（章节号 + 该章记忆内的连续原文引用），
- * 证据经 {@link EvidenceMatch} 归一化校验（2026-09-18 收编，此前是裸 {@code indexOf}），编造/漂移按未达成处理（宁严勿松）。
- * 核验是增强件：任何失败整体返回 null，调用方回退模型自评结转（fail-soft），不阻断生成
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -50,16 +44,6 @@ public class StageExitReviewService {
 
     private final LlmGateway llmGateway;
 
-    /**
-     * 逐条核验阶段退出条件（**原子粒度**）；输出与 exitConditions 逐一下标对齐。
-     *
-     * <p>复合条件（实测 78% 含"且/以及/同时"）先由 {@link ExitConditionPolicy} 拆成原子分句，
-     * 核验逐分句给证据，再机械聚合回整条：<em>全部原子达成才算整条达成</em>。
-     * 这样"差哪个分句"精确可见（写入 note），部分推进不再被"整条未达成"掩盖。
-     *
-     * @param promptSink 实际使用的 system/user prompt 回写容器（供复盘），可为 null
-     * @return 核验结果；无条件清单/区间内无摘要/解析失败/条数不齐/异常时返回 null（fail-soft）
-     */
     public List<StageBlueprintEntity.ExitConditionResult> review(StoryVO.Module module,
                                                                  StageBlueprintEntity stage,
                                                                  List<ChapterSummaryEntity> summaries,

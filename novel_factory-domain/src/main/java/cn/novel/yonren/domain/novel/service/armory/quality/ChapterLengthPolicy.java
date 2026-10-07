@@ -1,16 +1,6 @@
 package cn.novel.yonren.domain.novel.service.armory.quality;
 
-/**
- * 章节正文长度策略。有效字符仅统计中文、字母和数字，排除空白及标点。
- *
- * <p><b>为什么补了参考上沿（2026-09-29）</b>：策略原先只有下沿，于是"注水"这一类问题
- * <b>完全没有检测面</b>——实测第 20 章有效字 4170（邻章 1607～2205，约 2.2 倍）而关键事件数不变
- * （5 个，与 2205 字的第 19 章相同），信息密度腰斩，门禁与体检一个都没报。
- *
- * <p>上沿取 {@code assets/rules/plan-targets.md} 声明的目标区间上界（1400–2600）。
- * ⚠️ 与下沿一样<b>只告警不阻塞</b>：长度是创作取舍，机械层负责把现状摆出来并回灌规划层，
- * 不负责拒收章节（拒收只会逼模型注水——这条在下沿的设计里已经论证过）。
- */
+
 public final class ChapterLengthPolicy {
     public static final int MINIMUM_EFFECTIVE_CHARACTERS = 1500;
 

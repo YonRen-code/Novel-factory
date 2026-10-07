@@ -29,7 +29,7 @@ public class CheckpointEntity {
     private String name;
 
     /** 来源类型：AUTO(段/批边界) / MANUAL(手动命名) */
-    private CheckpointType type;
+    private cn.novel.yonren.types.enums.CheckpointType type;
 
     /** 快照时的最大章号（续写 offset；回滚后从 chapterCount+1 续写） */
     private int chapterCount;

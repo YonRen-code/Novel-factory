@@ -7,14 +7,7 @@ import org.springframework.stereotype.Service;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * LLM 预算熔断（防失控 job 烧钱）：网关在每次 usage 记账时上报本调用 token 数，
- * 按作业（jobId，一次批次）累计；达到预警线打 WARN，达到硬上限置位 job 的预算熔断信号——
- * worker 在当前章完成后停止（与协作取消同一检查点通道，逐章检查点已落盘，可 resume 续写）。
- * 阈值来自 story.budget（warn/hard 任一为 null 即关闭对应档位；两者均 null 时整体禁用）。
- * 说明：usage 流水按 jobId 归因，跨作业的"故事级累计"由每次作业各自熔断叠加保障；
- * 进程内计数，重启后计数归零（usage 明细仍完整保留在 llm-usage.jsonl 供人工对账）
- */
+
 @Service
 @Slf4j
 public class LlmBudgetFuse {

@@ -25,24 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 账本挂起事实裁决服务（L1 兜底通道）。
- *
- * <p>定位：机械分档（{@link EvidenceMatch}）已把能在正文定位的证据全部放行，残余的挂起项是
- * 「仅部分短语命中」的那批——它们多数是<em>真事实但被模型改写过措辞</em>，机械匹配已到极限。
- * 本服务回读当章正文，逐条判定该结论是否真的成立，成立则要求模型给出可逐字核对的新引文。
- *
- * <p><b>拟稿 → 机械校验</b>：本服务不直接相信模型。模型给出的 quote 必须<em>再次</em>通过
- * {@link EvidenceMatch#classify} 才算入账；校验不过的按「不支持」处理并告警。
- * 这样裁决层不会变成绕过反编造门的后门——它只能把证据<em>补全</em>，不能把事实<em>凭空引入</em>。
- *
- * <p><b>裁决范围</b>：只裁 {@link EvidenceMatch.Tier#PHRASE_PARTIAL}（含一致性事实中完全未附证据者）。
- * {@link EvidenceMatch.Tier#NO_MATCH}（全库无据）<em>不</em>进入裁决——它是反编造门唯一保留的逐出通道，
- * 撤回它等于撤掉门本身。挂起项不做静默删除：裁决不通过的条目原样留在挂起层，交观测层统计存量。
- *
- * <p><b>fail-soft</b>：未开启 / 无挂起项 / 调用异常 / 输出不可解析 —— 一律原样保留挂起层并返回 0，
- * 绝不反噬生成流程（账本是增强件，不是生成门禁）。
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -3,11 +3,7 @@ package cn.novel.yonren.domain.framework;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 策略路由抽象类
- * @create 2024-12-14 13:25
- */
+
 public abstract class AbstractStrategyRouter<T, D, R> implements StrategyMapper<T, D, R>, StrategyHandler<T, D, R> {
 
     @Getter

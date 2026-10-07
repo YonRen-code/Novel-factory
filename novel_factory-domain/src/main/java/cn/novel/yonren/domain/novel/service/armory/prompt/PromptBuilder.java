@@ -13,14 +13,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 提示词装配器：按场景+上下文收集命中的策略规则，产出 System 文本与 User 尾注。
- *
- * <p><b>失败语义分级</b>（2026-09-28）：
- * 普通策略加载失败只告警跳过（增强件缺失不该拖垮生成）；
- * {@link CriticalPromptRule} 标记者相反——supports 命中却一条也加载不到（多为规则文件/标题锚点
- * 被改名或未打包）或加载抛异常时**终止作业**：红线静默消失会让整批在缺约束下跑完且看不出来
- */
 @Component
 @Slf4j
 @RequiredArgsConstructor

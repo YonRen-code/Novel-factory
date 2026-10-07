@@ -10,12 +10,20 @@ import java.util.List;
  */
 @Data
 public class CheckpointDTO {
+
     private String checkpointId;
+
     private int versionNo;
+
     private String name;
+
     private String type;
+
     private int chapterCount;
+
     private int fileCount;
+
     private long createdAtMs;
+
     private boolean current;
 }

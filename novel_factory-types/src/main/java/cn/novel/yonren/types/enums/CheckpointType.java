@@ -1,4 +1,4 @@
-package cn.novel.yonren.domain.novel.model.entity;
+package cn.novel.yonren.types.enums;
 
 /**
  * 检查点来源类型：AUTO 由流水线在段/批边界自动打点；MANUAL 由用户在改写前手动命名快照

@@ -14,46 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 前缀总预算守门：把"多块拼装 + 各自封顶 + 合计无界"的输入段收敛到一条总量约束上。
- * 各块虽有独立封顶，但"封顶之和"会随块数增长击穿预算（正文前缀尤为明显：每轮迭代都在加新块）。
- *
- * <p><b>三个入口</b>：
- * <ul>
- *   <li>{@link #assembleChapterPrefix(int, List)}：正文前缀（块与渲染顺序由调用方给出）</li>
- *   <li>{@link #assemblePlanInput(int, List)}：章节计划输入段（预算取 {@code planPrefixChars}）</li>
- *   <li>{@link #assemble(String, int, int, List)}：通用入口（场景自定块与预算）</li>
- * </ul>
- *
- * <p><b>装配语义（各入口共用）</b>：
- * ① 渲染顺序 = 入参顺序（超预算只影响"谁被丢"，不影响"谁在前面"，未超预算时输出与逐块直拼逐字一致）；
- * ② 超预算时按 priority 淘汰：数值小者先保住，装不下的块跳过并继续看后续候选（贪心填满预算）——
- * 跳过低价值块优于截断高价值块；
- * ③ 可截断块仅在剩余预算够一段可读内容时按段落边界截断并标注，否则同样丢弃；
- * ④ 兜底：若全部被淘汰，强制保留最高优先块（截断至上限），前缀不得为空。
- *
- * <p><b>优先级刻度（1=最不可牺牲）</b>：
- * 1 末态红线 / 境界锁定；2 近章摘要 / 偏差警示 / 质量债；
- * 3 禁泄清单 / 卷方向锚 / 阶段蓝图 / 上章结尾；
- * 4 一致性索引 / 三账本 / 伏笔账 /
- *   <b>审校反馈 / 疲劳词红线 / 风格警示</b>（2026-10-01 由 5·5·6 上调）；
- * 5 久远唤醒（2026-10-01 由 4 下调）；7 文风指纹；8 情节模式黑名单。
- * 前情记忆不再作为单块参与（整块截尾会先牺牲"最近/纠错类"尾部），
- * 已拆为子块由 {@code ChapterMemoryService.buildMemoryBlocks} 给出。
- *
- * <p><b>为什么上调这三块（2026-10-01 实测）</b>：第 8/12/13 章连续出现
- * 「丢弃[疲劳词红线、审校反馈、风格警示、情节模式黑名单]」，而同一批里
- * 超长章与禁泄违例**连续三批**反复发作——写手看不到"上一章已被指出的问题"，
- * 等于每章从头再犯。代价对比很直接：这三块合计不足「久远唤醒」（1988 字）的一半，
- * 而后者只是背景补完，缺一两章不影响连贯。**行为指导块必须优先于背景补完块。**
- *
- * <p><b>不变式</b>：
- * ① 场景内 label 必须唯一——重复 label 会让同一块被渲染两次、预算扣减与实际输出脱节，违反即 fail-fast；
- * ② {@code truncatable=false} 的块（截断即静默丢事实，如禁泄清单/境界锁定）放不下时整块丢弃，弃则 WARN。
- *
- * <p><b>可观测</b>：每次装配一行 INFO（各块字数 / 占比 / 截断与丢弃清单），
- * 占比长期高位或出现 WARN 即为设计信号——回查是哪个块在膨胀，而不是直接调大上限
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -72,11 +32,6 @@ public class PromptBudgetGuard {
     /** 余量告警阈值：未裁剪但占比达到此值同样升 WARN（"余量假设"失效的早期信号） */
     private static final int NEAR_LIMIT_PERCENT = 90;
 
-    /**
-     * 正文前缀的固定块：label / 淘汰次序 / 是否可截断。
-     * 前情记忆已拆为子块（见 {@code ChapterMemoryService#buildMemoryBlocks}），故不在此枚举；
-     * 渲染顺序由调用方给出（此类不再约定顺序），枚举声明顺序仅表分组
-     */
     public enum PrefixBlock {
         /** 账本末态红线：位置/持有物/修为的硬对齐锚点 */
         EDGE_STATE("末态红线", 1, true),
@@ -111,23 +66,10 @@ public class PromptBudgetGuard {
         }
     }
 
-    /**
-     * 通用装配块：调用方直接给出规格（label 需在场景内唯一）与内容，不必把场景专属条目塞进 {@link PrefixBlock}
-     *
-     * @param label       块名（渲染与日志用，场景内必须唯一）
-     * @param priority    淘汰次序（1=先保住）
-     * @param truncatable 能否按段落边界截断
-     * @param content     本轮内容；空白视为"无此块"
-     */
     public record Block(String label, int priority, boolean truncatable, String content) {
     }
 
-    /**
-     * 正文前缀入口（2026-09-28）：块与渲染顺序全部由调用方给出——
-     * 前情记忆拆为子块后，"正文前缀"不再是固定枚举集，而是"枚举块 + 记忆子块"的有序序列
-     *
-     * @param chapterNo 章号（仅用于装配日志归因）
-     */
+
     public String assembleChapterPrefix(int chapterNo, List<Block> blocks) {
         return assemble("正文", chapterNo, properties.getTotalPrefixChars(), blocks);
     }
@@ -232,16 +174,6 @@ public class PromptBudgetGuard {
         return present;
     }
 
-    /**
-     * 预算告警三档，**必须与同一行的"截断/丢弃"清单口径一致**：
-     * <ol>
-     *   <li>核心约束被咬：不可截断块被整块丢弃，或 priority &le; {@link #CORE_PRIORITY} 的块被裁剪——最高级；</li>
-     *   <li>已裁剪但只牺牲了低价值块：**此前会错误地落进第 3 档**，导致同一行明写"截断[..]；丢弃[..]"、
-     *       告警却说"未触发裁剪"，读日志的人只能怀疑两边有一边是错的。判据与"是否真的发生裁剪"无关，
-     *       只看有没有波及核心块——这是两个维度，必须分开报；</li>
-     *   <li>无任何裁剪、仅临近上限：{@link #NEAR_LIMIT_PERCENT}，是"余量假设失效"的早期信号。</li>
-     * </ol>
-     */
     private void alertIfBudgetBites(String scene, int scopeNo, List<Block> truncated, List<Block> skipped,
                                     int usedPercent) {
         List<Block> sacrificed = new ArrayList<>(truncated);

@@ -90,20 +90,6 @@ public class StoryGenerateService {
         return dynamicContext;
     }
 
-    /**
-     * 章节计划审批通过后，从"正文生成"阶段续跑（跳过 ValidateUserInput→…→ValidateChapterPlan 的规划段）。
-     *
-     * <p>直接调用正文生成节点而非重跑整棵树，是因为挂起时保留的 DynamicContext 里
-     * 已含本轮规划的全部产物（章节计划、阶段蓝图、分段边界、故事上下文），
-     * 重跑整棵树会重新烧蓝图与规划的 LLM 调用，且可能产出与已批准计划不一致的分段。
-     *
-     * <p>进入正文节点后走的是原链：preparePlanCheckpoint（复用已有 runDir，把已批准的计划覆盖落盘）
-     * → 逐章生成 → 链尾持久化。
-     *
-     * <p><b>前置守卫</b>：本方法是树的第二个合法入口（见 {@link DefaultArmoryFactory} 类注释），
-     * 前提是 DynamicContext 来自挂起现场原样保留——上下文残缺（如进程内状态被清理）时
-     * 在此处快速失败，而不是深入 worker 后 NPE。
-     */
     public StoryGenerateResultAggregate resumeAfterPlanApproval(ArmoryCommandEntity command, GenerationJob job,
                                                                DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
         if (dynamicContext == null || dynamicContext.getChapterPlanAggregate() == null) {
@@ -119,14 +105,7 @@ public class StoryGenerateService {
         return generateChapterContentNode.apply(command, dynamicContext);
     }
 
-    /**
-     * 全书总章数上限（完结保护，sticky cap）：请求字段 maxChapterCount 优先，否则回退 yml 的
-     * constraints（enforce-chapter-limit=true 且 max-chapter-count>0 时生效）。
-     * 关键语义：完结上限在故事首次确立后**固化落盘**（story-meta.json），后续续写以落盘值为准——
-     * 请求上限只允许更低（min），禁止更高，换任何请求值都推不倒。
-     * 续写偏移已达上限 → 硬失败拒绝（故事已完结）；本批章节数超出剩余额度 → 截断到剩余额度。
-     * 有效上限写入 dynamicContext.maxChapterCount，供蓝图层做预算前置收敛与到顶强制收官。
-     */
+
     private void enforceChapterLimit(ArmoryCommandEntity command, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
         Integer effective = resolveEffectiveMax(command, dynamicContext);
         dynamicContext.setMaxChapterCount(effective);
@@ -149,16 +128,7 @@ public class StoryGenerateService {
         }
     }
 
-    /**
-     * 解析完结上限（sticky）：已固化则返回落盘值；**显式请求**的上限仅允许更低（min），更高时忽略并告警。
-     * 未固化：请求上限优先，否则 yml 兜底，均无则返回 null（不强制）。
-     *
-     * <p><b>yml 兜底值不参与续写（2026-09-27 修正）</b>：此前 yml 的 constraints.max-chapter-count
-     * 与请求字段混在同一个 {@code requestedMax} 里，导致**续写请求不显式传上限时**，无关的全局默认值
-     * 会被当成"用户要求更低的上限"而生效——实测本书固化上限 320，而 yml 默认 188，
-     * 一次不带该字段的续写就会让书在 188 章被判完结（静默提前收尾，且固化值"不可下调"的语义被绕过）。
-     * 现在：yml 默认只用于**新书**；已有固化值时，只有请求里真正给出的字段才有资格下调它。
-     */
+
     private Integer resolveEffectiveMax(ArmoryCommandEntity command, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
         // 只有"请求里显式给出"的上限才有资格参与 min 比较
         Integer requestedMax = command.getMaxChapterCount() != null && command.getMaxChapterCount() > 0
@@ -224,9 +194,6 @@ public class StoryGenerateService {
             dynamicContext.setForeshadowSettlements(new ArrayList<>(settlements));
         }
 
-        // 排期表预载：它是种子 scheduledPayoffChapter 打标的依据。
-        // ⚠️ 刻意**放在结算的非空判断之外**——排期表与结算台账是两个独立文件，
-        // 存在"有排期、还没到阶段出口所以没有结算"的中间态；放进 if 里会让排期悄悄不生效。
         dynamicContext.setForeshadowSchedules(
                 new ArrayList<>(storyRepository.readForeshadowSchedule(storyDir)));
 

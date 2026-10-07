@@ -14,10 +14,15 @@ import java.util.Map;
  */
 @Data
 public class LlmConfigSaveRequestDTO {
+    /** 接口地址覆盖；留空/空白=保留现有值 */
     private String baseUrl;
+    /** 新密钥；留空/空白=保留现有值（原文不回显，避免被误清空） */
     private String apiKey;
+    /** 模型名覆盖；留空/空白=保留现有值 */
     private String model;
+    /** 最大输出 token 覆盖；null=保留现有值 */
     private Long maxTokens;
+    /** true=清空全部运行时覆盖（含场景覆盖），回退 novel-generation.yml 静态配置 */
     private boolean reset;
     /** 仅清空分场景覆盖（保留全局覆盖与全局字段语义） */
     private boolean resetScenes;
@@ -27,8 +32,11 @@ public class LlmConfigSaveRequestDTO {
     /** 单场景覆盖条目：任一字段为空=该字段清除覆盖，回退全局覆盖/静态配置 */
     @Data
     public static class SceneOverride {
+        /** 场景模型名覆盖；null=清除该字段覆盖（回退全局覆盖/静态配置） */
         private String model;
+        /** 场景最大输出 token 覆盖；null=清除该字段覆盖 */
         private Long maxTokens;
+        /** 场景采样温度覆盖；null=清除该字段覆盖 */
         private Double temperature;
 
         public boolean isEmpty() {

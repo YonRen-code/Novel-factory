@@ -15,9 +15,11 @@ import org.springframework.stereotype.Component;
 public class PromptBudgetProperties {
 
 
+    /** 写手正文前缀总预算（字符数）：各块封顶之和超此值时，由 PromptBudgetGuard 按块优先级裁剪/丢弃 */
     private int totalPrefixChars = 18000;
 
 
+    /** 章节计划输入段的总预算（字符数），与正文前缀预算相互独立 */
     private int planPrefixChars = 20000;
 
 }

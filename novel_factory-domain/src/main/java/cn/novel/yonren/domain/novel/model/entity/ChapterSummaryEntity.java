@@ -48,6 +48,7 @@ public class ChapterSummaryEntity {
     private Boolean cheatMechanismUsed;
     // 时间线/伤情/术语/关键数字候选；证据不匹配者隔离，不进入一致性索引
     private List<ConsistencyFact> consistencyFacts;
+    // 证据校验未通过而被隔离的一致性事实候选：不进入一致性索引，待裁决层分流救回或人工确认
     private List<ConsistencyFact> pendingConsistencyFacts;
     // 与当前账本冲突的正文偏差描述（一致性软校验结果）
     private List<String> continuityConflicts;
@@ -200,12 +201,19 @@ public class ChapterSummaryEntity {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CharacterBeat {
+        // 配角名
         private String name;
+        // 该配角独立于主角的个人目标
         private String goal;
+        // 本章做出的主动决定
         private String decision;
+        // 该决定的直接后果
         private String consequence;
+        // 与主角（或其他角色）的关系变化
         private String relationshipChange;
+        // 下一步意图（供后续章延续其能动性）
         private String nextIntent;
+        // 支持该行为的正文连续原句（≤80 字）
         private String evidence;
     }
 
@@ -282,9 +290,13 @@ public class ChapterSummaryEntity {
     public static class ConsistencyFact {
         // TIMELINE / INJURY / TERM / NUMBER
         private String type;
+        // 事实主体（随 type 而定：事件/角色名/术语规范名/数字含义/「A与B」关系双方）
         private String subject;
+        // 事实值（随 type 而定：故事时间/伤情状态/正文别名或空/数值/变化后关系态）
         private String value;
+        // 作用范围/所属对象（如 INJURY 的受伤部位、NUMBER 的人物名）
         private String scope;
+        // 支持该事实的正文连续原句（≤50 字）
         private String evidence;
         // 证据档位（EvidenceMatch.Tier.code）：被隔离条目填逐出档供裁决层分流；放宽留痕档
         // （spread / anchored）入账时也填，供观测层统计

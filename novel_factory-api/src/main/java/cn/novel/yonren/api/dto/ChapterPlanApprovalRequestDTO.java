@@ -32,11 +32,17 @@ public class ChapterPlanApprovalRequestDTO {
 
     @Data
     public static class Chapter {
+        /** 章节号（全书全局编号；连续、唯一为机械校验项，不过返回 400 且保持挂起） */
         private Integer chapterNo;
+        /** 章节标题（非空校验项） */
         private String title;
+        /** 本章实现目标（非空校验项）：本章要完成的事 */
         private String goal;
+        /** 本章出场角色 */
         private List<String> characters;
+        /** 本章关键事件（非空校验项） */
         private List<String> keyEvents;
+        /** 结尾悬念（章末钩子） */
         private String endingHook;
         /** normal / transition / climax / finale；容错解析，未识别值按 normal（不因大小写或拼写中断裁决） */
         private String chapterType;

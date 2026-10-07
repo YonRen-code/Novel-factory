@@ -39,10 +39,13 @@ public class StoryGenerateRequestDTO {
     // 故事设定明确存在金手指/系统时传 true；false/null 时不启用三章频率规则
     private Boolean hasCheatMechanism;
 
+    /** 金手指/系统名称（如"签到系统"）：一致性索引据此登记机制账本，缺省记"未命名金手指" */
     private String cheatMechanismName;
 
+    /** 金手指使用/有意义提及的最大间隔章数（默认 3、最小 1）：超限触发审校提醒 */
     private Integer cheatUsageInterval;
 
+    /** true=本批章节计划跳过人工审批门直接透传（不挂起等裁决） */
     private Boolean autoApprovePlan;
 
     /** 本批创作要点（导演通道）：自由文本，注入卷/阶段/计划三个规划 prompt 顶部 */

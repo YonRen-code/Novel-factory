@@ -32,10 +32,13 @@ public class StageBlueprintEntity {
     private Boolean finalVolumeDeclared;
     // 篇幅是估算而非完结条件：用于工作台展示与滚动校准
     private Integer estimatedTotalChapters;
+    // 预估剩余章数区间下限（模型滚动校准估计；缺省继承上一版）
     private Integer estimatedRemainingChaptersMin;
+    // 预估剩余章数区间上限（小于下限时被钳制为下限）
     private Integer estimatedRemainingChaptersMax;
     // 收官卷未完成的剧情节点及已完成节点
     private List<String> remainingFinaleBeats;
+    // 已兑现的终局节点（终局审查对照；非空可防旧数据/模型漏字段误判停机）
     private List<String> completedFinaleBeats;
     // 阶段目标：本阶段结束时故事应到达的状态（1-2 句）
     private String stageGoal;
@@ -100,7 +103,9 @@ public class StageBlueprintEntity {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MainLineBeat {
+        // 该条推进对应的章号
         private Integer chapterNo;
+        // 该章主线的具体推进（段计划须逐字落进对应章计划的 mainLineAdvance）
         private String advance;
     }
 
@@ -132,6 +137,7 @@ public class StageBlueprintEntity {
         private String note;
         // 已达成原子数 / 原子总数（单句条件为 0/1 或 1/1）；老数据为 null
         private Integer metAtoms;
+        // 原子总数（与 metAtoms 配对；单句条件为 1）
         private Integer totalAtoms;
 
         /** 兼容构造器：metAtoms/totalAtoms 由核验服务回填，构造时无需提供 */

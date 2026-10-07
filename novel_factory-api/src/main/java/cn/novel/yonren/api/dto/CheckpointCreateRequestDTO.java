@@ -8,6 +8,7 @@ import lombok.Data;
 @Data
 public class CheckpointCreateRequestDTO {
 
+    /** 手动快照的命名词（回滚定位用；空白会被 400 拒绝） */
     private String name;
 
 }

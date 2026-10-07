@@ -9,6 +9,7 @@ import java.util.List;
 @Data
 public class StoryResumeDTO {
 
+    /** 续写目标故事目录名（stories/ 下的目录名，同时回填到 setting.resumeStoryDir） */
     private String storyDirName;
 
     /** 书名（展示用；权威取值在 {@link #setting} 里） */

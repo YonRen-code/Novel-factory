@@ -45,9 +45,13 @@ public class ForeshadowSettlementEntity {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SettlementDecision {
+        // 伏笔登记原文（账本按文本匹配，出账以此精确对齐）
         private String content;
+        // 埋设章号
         private Integer chapterNo;
+        // 裁决：RECOVER（限期回收）/ VOID（弃置出账）
         private String decision;
+        // 裁决理由（RECOVER 必须含自然连接点）
         private String reason;
     }
 

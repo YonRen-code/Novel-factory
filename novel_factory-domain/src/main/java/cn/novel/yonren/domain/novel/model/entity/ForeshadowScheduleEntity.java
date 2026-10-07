@@ -30,6 +30,7 @@ public class ForeshadowScheduleEntity {
     private Integer stageNo;
     // 本表覆盖的阶段区间（供注入时判断"本段落在谁的排期里"）
     private Integer startChapter;
+    // 覆盖区间终点章号（含，机械取自阶段蓝图 endChapter）
     private Integer endChapter;
 
     // 逐条排期

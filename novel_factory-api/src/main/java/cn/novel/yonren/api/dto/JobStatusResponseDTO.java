@@ -10,8 +10,10 @@ import java.util.Map;
 @Data
 public class JobStatusResponseDTO {
 
+    /** 作业 ID（轮询/取消/计划裁决等接口的定位键） */
     private String jobId;
 
+    /** 作业状态：CREATED 排队 / RUNNING 执行中 / CANCELLING 取消已受理 / AWAITING_APPROVAL 计划审批挂起 / FAILED 失败 / COMPLETED 完成 / CANCELLED 已取消 */
     private String status;
 
     /** 故事目录名（resume 时提交即知；首发由 worker 首章进度回填） */
@@ -20,17 +22,22 @@ public class JobStatusResponseDTO {
     /** 本批 run 目录名（run-job-<jobId>） */
     private String runDirName;
 
+    /** 当前阶段（如 CHAPTER_PLAN / CHAPTER_GENERATION，观测用自由文本） */
     private String currentStage;
 
+    /** 当前正在处理的章号（全书全局章号；规划期为本批首章）；尚未推进时为 null */
     private Integer currentChapter;
 
+    /** 本批末章号（= 本批完成后的全书章数；终局返工会动态追加） */
     private Integer totalChapters;
 
     /** epoch 毫秒 */
     private Long startedAtMs;
 
+    /** 进入终态（完成/失败/取消）的时刻（epoch 毫秒）；未结束为 null */
     private Long finishedAtMs;
 
+    /** 失败原因（仅 FAILED 非空） */
     private String errorMessage;
 
     /**

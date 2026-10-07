@@ -27,7 +27,9 @@ public class SettingDraftRequestDTO {
     /** 额外要求（可空）：例如「想要双男主，不要系统流」，模型必须遵守 */
     private String extraHints;
 
+    /** 本次要重生成的字段名（如 novelTitle / style）；null/空=全部重生成，其余字段按 previous 锁定；含未知字段名报 400 */
     private List<String> targets;
 
+    /** 上一版草稿（字段名→值）：非目标字段锁定为该值，并作为上下文供模型参考衔接 */
     private Map<String, String> previous;
 }

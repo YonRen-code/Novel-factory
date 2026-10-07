@@ -35,9 +35,13 @@ public class LlmConfigDTO {
     /** 单个模型的只读视图（统一 chat-model 用） */
     @Data
     public static class ModelView {
+        /** 模型名 */
         private String model;
+        /** 最大输出 token（单次生成上限） */
         private Long maxTokens;
+        /** 采样温度（0~2，越高越有创造性、越随机；null=走供应商默认） */
         private Double temperature;
+        /** 是否开启思考模式（DashScope 等供应商特有；null=不干预走供应商默认） */
         private Boolean enableThinking;
     }
 
@@ -58,11 +62,15 @@ public class LlmConfigDTO {
         private boolean independentApi;
         /** 静态生效模型（scene 条目 ?? 统一 chat-model） */
         private String staticModel;
+        /** 静态生效的最大输出 token（回落规则同 staticModel） */
         private Long staticMaxTokens;
+        /** 静态生效采样温度（回落规则同 staticModel） */
         private Double staticTemperature;
         /** 运行时覆盖（未覆盖字段为 null） */
         private String overrideModel;
+        /** 运行时覆盖的最大输出 token（未覆盖为 null） */
         private Long overrideMaxTokens;
+        /** 运行时覆盖的采样温度（未覆盖为 null） */
         private Double overrideTemperature;
         /** 该场景是否存在运行时覆盖 */
         private boolean overridden;

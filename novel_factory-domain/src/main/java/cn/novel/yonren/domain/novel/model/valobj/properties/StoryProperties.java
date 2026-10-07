@@ -18,6 +18,7 @@ public class StoryProperties {
     private StoryVO.Module module;
     //限制
     private StoryVO.Constraints constraints;
+    /** 故事级一致性 feature 声明（金手指等），经 toStoryVO() 透传给领域层 */
     private StoryVO.StoryFeatures features;
     // 章节审校开关
     private AuditProperties audit = new AuditProperties();
@@ -63,6 +64,7 @@ public class StoryProperties {
         /** 单章最大修订轮数 */
         private int maxAttempts = 1;
 
+        /** 是否优先尝试定向补丁修订（模型只产出「锚点→替换文本」的局部改写）；未采用时回退整章重写 */
         private boolean patchEnabled = true;
     }
 
@@ -73,14 +75,17 @@ public class StoryProperties {
         /** 每次低置信通过时并发生成的候选数（不含原稿） */
         private int maxCandidates = 1;
 
+        /** 审校门结论为 MINOR_RESIDUE（残留 MINOR 问题）时是否触发候选挑战；默认关闭——MINOR 条数缺乏判别力 */
         private boolean triggerOnMinorResidue = false;
 
+        /** MINOR_RESIDUE 触发候选所需的 MINOR 问题条数下限，与 triggerOnMinorResidue 联用 */
         private int minorResidueThreshold = 6;
 
         /** 修订过 N 轮后才闭环是否触发候选（**当前唯一有效的触发信号**，采纳率 66.7%） */
         private boolean triggerOnRevisedPass = true;
 
 
+        /** 审校门结论为 DEBT（修订耗尽仍不收敛）时是否触发候选挑战；默认关闭 */
         private boolean triggerOnDebt = false;
         /** 候选重写调用的单次输出上限（评审场景 yml max-tokens 为小值，重写时按此覆盖） */
         private Long rewriteMaxTokens = 16384L;

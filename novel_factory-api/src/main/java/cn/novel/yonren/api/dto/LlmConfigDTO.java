@@ -32,6 +32,9 @@ public class LlmConfigDTO {
     /** 场景模型矩阵（按 ModelScene 枚举序，含静态生效值与运行时覆盖） */
     private List<SceneView> scenes;
 
+    /** Embedding 向量分区（只读展示：嵌入模型不走运行时覆盖，改 yml 需重启生效） */
+    private EmbeddingView embedding;
+
     /** 单个模型的只读视图（统一 chat-model 用） */
     @Data
     public static class ModelView {
@@ -74,5 +77,25 @@ public class LlmConfigDTO {
         private Double overrideTemperature;
         /** 该场景是否存在运行时覆盖 */
         private boolean overridden;
+    }
+
+    /**
+     * Embedding 接入的只读视图：yml module.embedding-api 直连建客户端、不参与运行时覆盖
+     * （向量召回挂的是独立供应商与账单，覆盖错一处索引就作废，故只展示不开放热改）
+     */
+    @Data
+    public static class EmbeddingView {
+        /** 是否已配置 embedding-api（false=向量召回不可用，生成主链路不受影响） */
+        private boolean configured;
+        /** 嵌入模型名 */
+        private String model;
+        /** 接口地址（非机密，原文返回便于核对指向） */
+        private String baseUrl;
+        /** 是否已配置 apiKey */
+        private boolean hasKey;
+        /** apiKey 掩码，未设置时为 null */
+        private String apiKeyMasked;
+        /** 向量维度（null=走供应商默认） */
+        private Integer dimensions;
     }
 }

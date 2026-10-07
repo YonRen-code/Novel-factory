@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import cn.novel.yonren.domain.novel.model.aggregate.ChapterPlanAggregate;
+import cn.novel.yonren.domain.novel.service.armory.quality.BatchHealthReport;
 import cn.novel.yonren.types.enums.JobStatus;
 
 import java.util.HashMap;
@@ -53,6 +54,12 @@ public class GenerationJob {
 
     /** 本作业累计 token 用量（网关逐调用累加，观测用，随 job-status.json 落盘） */
     private volatile long tokensUsed;
+
+    /**
+     * 最近一次批末体检报告（每批结束在 worker 覆盖，随作业状态轮询透出给前端）。
+     * transient：不进 job-status.json——体检是批末快照而非进度，落盘会让崩溃恢复读到过期结论
+     */
+    private volatile transient BatchHealthReport lastHealthReport;
 
     /**
      * 批序号（1 起）。外部首发 = 1；自动续批时父作业 +1（见 {@code StoryJobService.scheduleNextBatchIfNeeded}）。

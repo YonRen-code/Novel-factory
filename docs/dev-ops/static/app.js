@@ -188,7 +188,7 @@
             btn.classList.add('active');
             document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
             if (btn.dataset.tab === 'library') { loadStories(); }
-            if (btn.dataset.tab === 'settings') { loadLlmConfig(); }
+            if (btn.dataset.tab === 'settings') { loadLlmConfig(); loadMetrics(); }
             // 回到生成页时刷新故事列表：刚写完的故事应能立刻被续写
             if (btn.dataset.tab === 'generate') { loadStoryOptions(); }
         });
@@ -440,6 +440,8 @@
         renderApprovalCard(job);
         // 中断（失败/取消）时给出"接着往下写"的入口
         renderResumeAction(job);
+        // 批末体检随轮询更新（每批结束出现；无体检报告时隐藏）
+        renderHealthReport(job.healthReport);
     }
 
     function statusBadge(status) {
@@ -1636,6 +1638,7 @@
                 + ' · 模型=' + (data.model || '沿用静态') + ' · ' + keyText;
         }
         renderSceneMatrix(data);
+        renderEmbedding(data.embedding);
     }
 
     // 场景模型矩阵：静态生效值 + 覆盖输入（留空=清除该字段覆盖，整表提交后端全量替换）
@@ -1810,6 +1813,115 @@
 
     btnSaveSceneConfig.addEventListener('click', saveSceneOverrides);
     btnResetSceneConfig.addEventListener('click', resetSceneOverrides);
+
+    // ===== 向量检索分区（只读：嵌入模型不走运行时覆盖，改 yml 重启生效） =====
+    function renderEmbedding(emb) {
+        const div = document.getElementById('embed-view');
+        if (!div) return;
+        if (!emb || !emb.configured) {
+            div.innerHTML = '<p class="empty-hint">yml 未配置 module.embedding-api：向量召回不可用（生成主链路不受影响）</p>';
+            return;
+        }
+        const rows = [
+            ['模型', emb.model || '未配置'],
+            ['接口地址', emb.baseUrl || '未配置'],
+            ['向量维度', emb.dimensions != null ? String(emb.dimensions) : '供应商默认'],
+            ['API Key', emb.hasKey ? '已配置（' + (emb.apiKeyMasked || '已掩码') + '）' : '未配置']
+        ];
+        div.innerHTML = rows.map(function (r) {
+            return '<div class="scene-row"><div class="scene-name"><b>' + esc(r[0]) + '</b></div>'
+                + '<div class="scene-static"><span class="mono">' + esc(r[1]) + '</span></div></div>';
+        }).join('');
+    }
+
+    // ===== 运行观测（量化日志）：llm-usage.jsonl 的调用/失败/token/耗时汇总 =====
+    const btnRefreshMetrics = document.getElementById('btn-refresh-metrics');
+
+    function loadMetrics() {
+        fetchJson('/api/metrics/llm')
+        .then(renderMetrics)
+        .catch(function (err) {
+            const sum = document.getElementById('metrics-summary');
+            if (sum) sum.innerHTML = '<p class="empty-hint">读取失败：' + esc(err.message) + '</p>';
+        });
+    }
+
+    function renderMetrics(m) {
+        const sum = document.getElementById('metrics-summary');
+        const byModel = document.getElementById('metrics-by-model');
+        if (!sum || !byModel) return;
+        sum.innerHTML = [
+            metric('调用次数', m.calls || 0),
+            metric('失败率', m.failureRate != null ? (m.failureRate * 100).toFixed(2) + '%' : '-'),
+            metric('总 Tokens', formatNum(m.totalTokens)),
+            metric('输入 / 输出', formatNum(m.promptTokens) + ' / ' + formatNum(m.completionTokens)),
+            metric('累计耗时', formatDuration(m.durationMs)),
+            metric('平均耗时', formatDuration(m.averageDurationMs))
+        ].join('');
+        const entries = Object.entries(m.byModel || {});
+        if (entries.length === 0) {
+            byModel.innerHTML = '<p class="empty-hint">尚无调用记录（llm-usage.jsonl 为空或不存在）</p>';
+            return;
+        }
+        const total = entries.reduce(function (acc, e) { return acc + e[1]; }, 0) || 1;
+        byModel.innerHTML = entries.map(function (e) {
+            return '<div class="metrics-model-row"><b class="mono">' + esc(e[0]) + '</b>'
+                + '<span class="mono">' + e[1] + ' 次 · ' + (e[1] * 100 / total).toFixed(1) + '%</span></div>';
+        }).join('');
+    }
+
+    function formatNum(n) {
+        if (n == null) return '-';
+        if (n >= 1e8) return (n / 1e8).toFixed(2) + ' 亿';
+        if (n >= 1e4) return (n / 1e4).toFixed(1) + ' 万';
+        return String(n);
+    }
+
+    function formatDuration(ms) {
+        if (ms == null) return '-';
+        if (ms >= 3600000) return (ms / 3600000).toFixed(1) + ' 小时';
+        if (ms >= 60000) return (ms / 60000).toFixed(1) + ' 分钟';
+        return (ms / 1000).toFixed(1) + ' 秒';
+    }
+
+    // ===== 批末体检呈现：overall 分级徽标 + 逐指标行（级别着色）+ 建议 =====
+    function renderHealthReport(report) {
+        const box = document.getElementById('job-health');
+        if (!box) return;
+        if (!report || !report.overall) {
+            box.classList.add('hidden');
+            box.innerHTML = '';
+            return;
+        }
+        const lvColor = { OK: '#34d399', WATCH: '#fbbf24', DEGRADED: '#fb923c', CRITICAL: '#f87171' };
+        const lvName = { OK: '健康', WATCH: '观察', DEGRADED: '劣化', CRITICAL: '危急' };
+        const color = lvColor[report.overall] || '#8b93a7';
+        let html = '<div class="list-header"><h3 class="status-title">批末体检'
+            + '<span class="health-badge" style="color:' + color + '">' + esc(lvName[report.overall] || report.overall)
+            + ' · ' + esc(report.overall) + '</span>'
+            + '<span class="scene-key">样本 ' + (report.chapterCount != null ? report.chapterCount : '?') + ' 章</span></h3></div>';
+        html += '<div class="health-metrics">';
+        (report.metrics || []).forEach(function (mt) {
+            const c = lvColor[mt.level] || '#8b93a7';
+            html += '<div class="health-metric">'
+                + '<span class="health-level" style="color:' + c + '">' + esc(mt.level || '') + '</span>'
+                + '<span class="health-label">' + esc(mt.label || '') + '</span>'
+                + '<span class="health-value mono">' + esc(formatNum(mt.value)) + esc(mt.unit || '') + '</span>'
+                + '<span class="health-target">' + esc(mt.healthyLine || '') + '</span>'
+                + (mt.detail ? '<span class="health-detail">' + esc(mt.detail) + '</span>' : '')
+                + '</div>';
+        });
+        html += '</div>';
+        if (report.recommendations && report.recommendations.length > 0) {
+            html += '<div class="health-recs"><b>建议</b><ul>'
+                + report.recommendations.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('')
+                + '</ul></div>';
+        }
+        box.innerHTML = html;
+        box.classList.remove('hidden');
+    }
+
+    if (btnRefreshMetrics) btnRefreshMetrics.addEventListener('click', loadMetrics);
 
     // ===== Toast 通知 =====
     const toastEl = document.getElementById('toast');

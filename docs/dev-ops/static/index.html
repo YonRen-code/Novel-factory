@@ -190,6 +190,8 @@
                     <div class="section-label" data-page-node-id="QpWnTljWzlqYl7cVbXYZIk">JOB STATUS</div>
                     <h3 class="status-title" data-page-node-id="8JVcnGdHRtrMeKYXehYCSv">作业状态</h3>
                     <div id="status-detail" data-page-node-id="26zzmekPirmWAgjCBTHNrY"></div>
+                    <!-- 批末体检：每批（5 章）结束随轮询出现，24 项量化指标 + 建议 -->
+                    <div id="job-health" class="hidden"></div>
                     <!-- 作业中断（失败/取消）且已有落盘章节时出现：接着最后一章往下续，不重写已完成的章 -->
                     <div id="resume-action" class="resume-action hidden">
                         <p id="resume-action-hint" class="settings-hint"></p>
@@ -352,6 +354,39 @@
                     <div class="form-actions" data-page-node-id="Xai7jBk4wpdQMR1DjCQxtC">
                         <button type="button" id="btn-save-scene-config" class="btn-primary" data-page-node-id="oWQEa7oqB7EEGdTFLwSew0">保 存 场 景 覆 盖</button>
                         <button type="button" id="btn-reset-scene-config" class="btn-secondary" data-page-node-id="ev62vZsbh625KunV4opFP3">清 除 场 景 覆 盖</button>
+                    </div>
+                </div>
+
+                <div class="content-card">
+                    <div class="section-label">EMBEDDING</div>
+                    <h2 class="section-title">向量检索分区</h2>
+                    <p class="settings-hint">
+                        Embedding 负责「回忆相似情节」的向量召回，与聊天模型相互独立：走自己的 base-url 与 key，
+                        不参与上方的运行时覆盖——向量库里的索引和维度绑死，热改配置会让新旧向量不可比，所以这里只读展示。
+                        要改请编辑 novel-generation.yml 的 module.embedding-api 后重启生效；API Key 只显示掩码。
+                    </p>
+                    <div id="embed-view" class="scene-matrix">
+                        <p class="empty-hint">加载中...</p>
+                    </div>
+                </div>
+
+                <div class="content-card">
+                    <div class="section-label">OBSERVATORY</div>
+                    <div class="list-header">
+                        <h2 class="section-title">运行观测 · 量化日志</h2>
+                        <button id="btn-refresh-metrics" class="btn-secondary" type="button">刷 新 数 据</button>
+                    </div>
+                    <p class="settings-hint">
+                        汇总每次模型调用的落盘用量（data/log/llm-usage.jsonl）：调用数与失败率看链路稳定性，
+                        token 三项看成本，平均耗时看供应商响应质量；「按模型分布」用来核对场景路由是否真的把活
+                        派给了预期的模型。单批正文质量体检在「生成」页的作业状态卡里随轮询出现。
+                    </p>
+                    <div id="metrics-summary" class="metric-grid">
+                        <p class="empty-hint">加载中...</p>
+                    </div>
+                    <h3 class="wb-col-title">按模型分布</h3>
+                    <div id="metrics-by-model" class="scene-matrix">
+                        <p class="empty-hint">加载中...</p>
                     </div>
                 </div>
             </section>

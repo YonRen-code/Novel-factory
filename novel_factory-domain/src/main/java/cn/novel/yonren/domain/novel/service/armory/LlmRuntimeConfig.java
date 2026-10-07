@@ -257,6 +257,7 @@ public class LlmRuntimeConfig {
         }
         dto.setUnifiedModelEnabled(!Boolean.FALSE.equals(module.getUnifiedModelEnabled()));
         dto.setUnified(toModelView(module.getChatModel()));
+        dto.setEmbedding(toEmbeddingView(module.getEmbeddingApi()));
 
         List<LlmConfigDTO.SceneView> rows = new ArrayList<>();
         for (ModelScene scene : ModelScene.values()) {
@@ -297,6 +298,23 @@ public class LlmRuntimeConfig {
         view.setMaxTokens(chatModel.getMaxTokens());
         view.setTemperature(chatModel.getTemperature());
         view.setEnableThinking(chatModel.getEnableThinking());
+        return view;
+    }
+
+    /** Embedding 分区只读视图（不参与运行时覆盖，仅透出 yml 静态配置与掩码） */
+    private static LlmConfigDTO.EmbeddingView toEmbeddingView(StoryVO.Module.EmbeddingApi embeddingApi) {
+        if (embeddingApi == null) {
+            return null;
+        }
+        LlmConfigDTO.EmbeddingView view = new LlmConfigDTO.EmbeddingView();
+        view.setConfigured(true);
+        view.setModel(embeddingApi.getModel());
+        view.setBaseUrl(embeddingApi.getBaseUrl());
+        if (StringUtils.isNotBlank(embeddingApi.getApiKey())) {
+            view.setHasKey(true);
+            view.setApiKeyMasked(mask(embeddingApi.getApiKey()));
+        }
+        view.setDimensions(embeddingApi.getDimensions());
         return view;
     }
 

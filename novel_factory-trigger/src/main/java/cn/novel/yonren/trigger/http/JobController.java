@@ -130,6 +130,7 @@ public class JobController {
         dto.setAwaitingPlanApprovalAtMs(job.getAwaitingPlanApprovalAtMs());
         dto.setPlanApprovalDeadlineMs(job.getPlanApprovalDeadlineMs());
         dto.setApprovalRound(job.getApprovalRound());
+        dto.setHealthReport(job.getLastHealthReport());
         // 仅挂起态透出计划：非挂起态前端拿到计划也无事可做，且避免把大对象挂在每次轮询上
         if (job.isAwaitingApproval()) {
             dto.setPendingChapterPlan(storyJobService.pendingChapterPlan(job.getJobId()));

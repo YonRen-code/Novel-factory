@@ -63,4 +63,11 @@ public class JobStatusResponseDTO {
     /** 本作业已完成的人工裁决轮次（超时放行不计入，用于区分"人改过"与"没人管"的观测） */
     private Integer approvalRound;
 
+    /**
+     * 最近一次批末体检报告（每批 5 章结束更新；null=本作业尚无体检）。
+     * 结构为 {@code BatchHealthReport} 的原样序列化：overall / metrics[]（key/label/value/unit/
+     * healthyLine/direction/level/detail）/ recommendations。声明为 Object 以保持 api 模块不依赖 domain
+     */
+    private Object healthReport;
+
 }

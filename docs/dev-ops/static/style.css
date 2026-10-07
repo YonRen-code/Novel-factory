@@ -1289,3 +1289,67 @@ body.light .theme-float {
 body:not(.light) select {
     color-scheme: dark;
 }
+
+/* ---- 批末体检（作业状态卡内）与运行观测 ---- */
+
+.health-badge {
+    display: inline-block;
+    margin-left: 12px;
+    padding: 2px 12px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.health-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 12px 0;
+}
+
+.health-metric {
+    display: grid;
+    grid-template-columns: 84px 170px 120px 1fr;
+    gap: 4px 12px;
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13px;
+    align-items: baseline;
+}
+
+.health-level { font-weight: 700; font-size: 12px; font-family: var(--mono); }
+.health-label { font-weight: 600; }
+.health-value { font-family: var(--mono); color: var(--accent); }
+.health-target { color: var(--text-secondary); font-size: 12px; }
+.health-detail {
+    grid-column: 2 / -1;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+    word-break: break-all;
+}
+
+.health-recs {
+    margin-top: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.health-recs ul { margin: 6px 0 0 18px; padding: 0; }
+.health-recs li { margin: 4px 0; color: var(--text-secondary); line-height: 1.7; }
+
+.metrics-model-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13px;
+}

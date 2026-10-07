@@ -602,6 +602,10 @@ public class ChapterWorker {
                 dynamicContext.getForeshadowSettlements(),
                 requestParameter.getStoryContextEntity() == null
                         ? null : requestParameter.getStoryContextEntity().getChapterGoal());
+        // 体检结果挂到作业对象：前端轮询作业状态即可看到本批 24 项指标与建议（依旧只报不动作）
+        if (job != null) {
+            job.setLastHealthReport(health);
+        }
         if (health.needsAttention()) {
             log.warn("第 {}-{} 章批次结束，{}", offset + 1, offset + chapterContents.size(), health.render());
         } else {

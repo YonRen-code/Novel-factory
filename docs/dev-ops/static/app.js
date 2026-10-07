@@ -188,9 +188,9 @@
             btn.classList.add('active');
             document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
             if (btn.dataset.tab === 'library') { loadStories(); }
-            if (btn.dataset.tab === 'settings') { loadLlmConfig(); loadMetrics(); }
+            if (btn.dataset.tab === 'settings') { loadLlmConfig(); }
             // 回到生成页时刷新故事列表：刚写完的故事应能立刻被续写
-            if (btn.dataset.tab === 'generate') { loadStoryOptions(); }
+            if (btn.dataset.tab === 'generate') { loadStoryOptions(); loadMetrics(); }
         });
     });
 
@@ -592,6 +592,8 @@
     });
 
     loadStoryOptions();
+    // 运行观测卡在生成页，首屏即加载（观测接口 fail-soft，读不到只是空统计）
+    loadMetrics();
 
     // ===== 一键生成设定集（草稿：只给题材 → 整套字段） =====
     // 后端 /api/setting-draft 是同步的单次 LLM 调用、零落盘副作用；结果只回填表单，
@@ -1814,25 +1816,91 @@
     btnSaveSceneConfig.addEventListener('click', saveSceneOverrides);
     btnResetSceneConfig.addEventListener('click', resetSceneOverrides);
 
-    // ===== 向量检索分区（只读：嵌入模型不走运行时覆盖，改 yml 重启生效） =====
+    // ===== 向量检索分区（可运行时覆盖：地址/密钥/模型/维度；客户端按调用重建，保存即生效） =====
+    const embedForm = document.getElementById('embed-form');
+    const embedStatusDiv = document.getElementById('embed-status');
+    const inputEmbedBaseUrl = document.getElementById('embed_baseUrl');
+    const inputEmbedApiKey = document.getElementById('embed_apiKey');
+    const inputEmbedModel = document.getElementById('embed_model');
+    const inputEmbedDimensions = document.getElementById('embed_dimensions');
+    const btnSaveEmbed = document.getElementById('btn-save-embed');
+    const btnResetEmbed = document.getElementById('btn-reset-embed');
+
     function renderEmbedding(emb) {
-        const div = document.getElementById('embed-view');
-        if (!div) return;
+        if (!embedForm) return;
+        const fields = [inputEmbedBaseUrl, inputEmbedApiKey, inputEmbedModel, inputEmbedDimensions, btnSaveEmbed, btnResetEmbed];
         if (!emb || !emb.configured) {
-            div.innerHTML = '<p class="empty-hint">yml 未配置 module.embedding-api：向量召回不可用（生成主链路不受影响）</p>';
+            fields.forEach(function (el) { if (el) el.disabled = true; });
+            embedStatusDiv.className = 'config-status';
+            embedStatusDiv.classList.remove('hidden');
+            embedStatusDiv.textContent = 'yml 未配置 module.embedding-api 静态段：先在 yml 里配好，再谈运行时覆盖';
             return;
         }
-        const rows = [
-            ['模型', emb.model || '未配置'],
-            ['接口地址', emb.baseUrl || '未配置'],
-            ['向量维度', emb.dimensions != null ? String(emb.dimensions) : '供应商默认'],
-            ['API Key', emb.hasKey ? '已配置（' + (emb.apiKeyMasked || '已掩码') + '）' : '未配置']
-        ];
-        div.innerHTML = rows.map(function (r) {
-            return '<div class="scene-row"><div class="scene-name"><b>' + esc(r[0]) + '</b></div>'
-                + '<div class="scene-static"><span class="mono">' + esc(r[1]) + '</span></div></div>';
-        }).join('');
+        fields.forEach(function (el) { if (el) el.disabled = false; });
+        inputEmbedBaseUrl.value = emb.overrideBaseUrl || '';
+        inputEmbedApiKey.value = '';
+        inputEmbedModel.value = emb.overrideModel || '';
+        inputEmbedDimensions.value = emb.overrideDimensions != null ? emb.overrideDimensions : '';
+        inputEmbedBaseUrl.placeholder = '留空沿用静态：' + (emb.baseUrl || '未配置');
+        inputEmbedModel.placeholder = '留空沿用静态：' + (emb.model || '未配置');
+        inputEmbedDimensions.placeholder = emb.dimensions != null ? '留空沿用静态：' + emb.dimensions : '留空走供应商默认';
+        embedStatusDiv.textContent = '静态生效：模型=' + (emb.model || '未配置')
+            + ' · 维度=' + (emb.dimensions != null ? emb.dimensions : '供应商默认')
+            + ' · Key ' + (emb.hasKey ? '已配置（' + (emb.apiKeyMasked || '已掩码') + '）' : '未配置')
+            + (emb.overridden ? '；嵌入覆盖生效中（保存后下次向量调用即用新值）' : '；当前无嵌入覆盖');
+        embedStatusDiv.classList.remove('hidden');
+        embedStatusDiv.classList.toggle('has-config', emb.overridden === true);
     }
+
+    function embedStatus(msg, type) {
+        embedStatusDiv.textContent = msg;
+        embedStatusDiv.classList.remove('hidden');
+        embedStatusDiv.classList.toggle('has-config', type === 'ok' || type === 'error');
+        embedStatusDiv.style.borderColor = type === 'error' ? 'var(--error)' : (type === 'ok' ? 'var(--ok)' : '');
+        embedStatusDiv.style.color = type === 'error' ? 'var(--error)' : (type === 'ok' ? 'var(--ok)' : '');
+    }
+
+    embedForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const embedding = {};
+        if (inputEmbedBaseUrl.value.trim() !== '') embedding.baseUrl = inputEmbedBaseUrl.value.trim();
+        if (inputEmbedApiKey.value.trim() !== '') embedding.apiKey = inputEmbedApiKey.value.trim();
+        if (inputEmbedModel.value.trim() !== '') embedding.model = inputEmbedModel.value.trim();
+        if (inputEmbedDimensions.value.trim() !== '') embedding.dimensions = parseInt(inputEmbedDimensions.value, 10);
+        btnSaveEmbed.disabled = true;
+        fetchJson('/api/config/llm', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embedding: embedding })
+        })
+        .then(function (data) {
+            renderLlmConfig(data);
+            showToast('嵌入覆盖已保存，下次向量调用即生效');
+        })
+        .catch(function (err) {
+            embedStatus('嵌入覆盖保存失败：' + err.message, 'error');
+            showToast('嵌入覆盖保存失败：' + err.message);
+        })
+        .finally(function () { btnSaveEmbed.disabled = false; });
+    });
+
+    btnResetEmbed.addEventListener('click', function () {
+        btnResetEmbed.disabled = true;
+        fetchJson('/api/config/llm', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resetEmbedding: true })
+        })
+        .then(function (data) {
+            renderLlmConfig(data);
+            showToast('嵌入覆盖已清除，回退 yml 静态配置');
+        })
+        .catch(function (err) {
+            embedStatus('嵌入覆盖清除失败：' + err.message, 'error');
+            showToast('清除失败：' + err.message);
+        })
+        .finally(function () { btnResetEmbed.disabled = false; });
+    });
 
     // ===== 运行观测（量化日志）：llm-usage.jsonl 的调用/失败/token/耗时汇总 =====
     const btnRefreshMetrics = document.getElementById('btn-refresh-metrics');

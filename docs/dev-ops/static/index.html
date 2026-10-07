@@ -222,6 +222,27 @@
                         <button type="button" id="btn-reject-plan" class="btn-secondary" data-page-node-id="zbUR6RWFo819mcns4jWxeN">驳 回 本 批</button>
                     </div>
                 </div>
+
+                <!-- 运行观测：与作业状态卡同页，token 用量 + 批末体检构成生成页的量化观测 -->
+                <div class="content-card">
+                    <div class="section-label">OBSERVATORY</div>
+                    <div class="list-header">
+                        <h2 class="section-title">运行观测 · 量化日志</h2>
+                        <button id="btn-refresh-metrics" class="btn-secondary" type="button">刷 新 数 据</button>
+                    </div>
+                    <p class="settings-hint">
+                        汇总每次模型调用的落盘用量（data/log/llm-usage.jsonl）：调用数与失败率看链路稳定性，
+                        token 三项看成本，平均耗时看供应商响应质量；「按模型分布」用来核对场景路由是否真的把活
+                        派给了预期的模型。单批正文质量体检见同页上方「作业状态」卡（每批 5 章结束随轮询更新）。
+                    </p>
+                    <div id="metrics-summary" class="metric-grid">
+                        <p class="empty-hint">加载中...</p>
+                    </div>
+                    <h3 class="wb-col-title">按模型分布</h3>
+                    <div id="metrics-by-model" class="scene-matrix">
+                        <p class="empty-hint">加载中...</p>
+                    </div>
+                </div>
             </section>
 
             <!-- 故事库 -->
@@ -361,33 +382,35 @@
                     <div class="section-label">EMBEDDING</div>
                     <h2 class="section-title">向量检索分区</h2>
                     <p class="settings-hint">
-                        Embedding 负责「回忆相似情节」的向量召回，与聊天模型相互独立：走自己的 base-url 与 key，
-                        不参与上方的运行时覆盖——向量库里的索引和维度绑死，热改配置会让新旧向量不可比，所以这里只读展示。
-                        要改请编辑 novel-generation.yml 的 module.embedding-api 后重启生效；API Key 只显示掩码。
+                        Embedding 负责「回忆相似情节」的向量召回，与聊天模型相互独立：走自己的 base-url 与 key。
+                        可运行时覆盖地址 / 密钥 / 模型 / 维度——客户端按调用自动重建，保存即生效、跨重启保留，留空字段沿用当前值。
+                        ⚠️ 维度与 Qdrant 集合绑死：换维度后新旧向量不可比、既有索引需重建，不确定就别动维度。API Key 只显示掩码。
                     </p>
-                    <div id="embed-view" class="scene-matrix">
-                        <p class="empty-hint">加载中...</p>
-                    </div>
-                </div>
-
-                <div class="content-card">
-                    <div class="section-label">OBSERVATORY</div>
-                    <div class="list-header">
-                        <h2 class="section-title">运行观测 · 量化日志</h2>
-                        <button id="btn-refresh-metrics" class="btn-secondary" type="button">刷 新 数 据</button>
-                    </div>
-                    <p class="settings-hint">
-                        汇总每次模型调用的落盘用量（data/log/llm-usage.jsonl）：调用数与失败率看链路稳定性，
-                        token 三项看成本，平均耗时看供应商响应质量；「按模型分布」用来核对场景路由是否真的把活
-                        派给了预期的模型。单批正文质量体检在「生成」页的作业状态卡里随轮询出现。
-                    </p>
-                    <div id="metrics-summary" class="metric-grid">
-                        <p class="empty-hint">加载中...</p>
-                    </div>
-                    <h3 class="wb-col-title">按模型分布</h3>
-                    <div id="metrics-by-model" class="scene-matrix">
-                        <p class="empty-hint">加载中...</p>
-                    </div>
+                    <form id="embed-form">
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="embed_baseUrl">Base URL（接口地址）</label>
+                                <input type="text" id="embed_baseUrl" placeholder="留空沿用静态配置" autocomplete="off">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="embed_apiKey">API Key / Token</label>
+                                <input type="password" id="embed_apiKey" placeholder="留空则保留现有 Key" autocomplete="new-password">
+                            </div>
+                            <div class="form-group">
+                                <label for="embed_model">模型名（model）</label>
+                                <input type="text" id="embed_model" placeholder="留空沿用静态配置" autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label for="embed_dimensions">向量维度（改前三思）</label>
+                                <input type="number" id="embed_dimensions" min="1" placeholder="留空沿用静态配置" autocomplete="off">
+                            </div>
+                        </div>
+                        <div id="embed-status" class="config-status hidden"></div>
+                        <div class="form-actions">
+                            <button type="submit" id="btn-save-embed" class="btn-primary">保 存 嵌 入 覆 盖</button>
+                            <button type="button" id="btn-reset-embed" class="btn-secondary">清 除 嵌 入 覆 盖</button>
+                        </div>
+                    </form>
                 </div>
             </section>
         </main>

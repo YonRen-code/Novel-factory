@@ -28,6 +28,23 @@ public class LlmConfigSaveRequestDTO {
     private boolean resetScenes;
     /** 分场景覆盖全量替换表；null=本次不触碰场景覆盖（区别于空表=清空） */
     private Map<String, SceneOverride> scenes;
+    /** 嵌入分区覆盖；null=本次不触碰嵌入覆盖；字段级：null=保留现状、空串=清除该字段覆盖 */
+    private EmbeddingOverride embedding;
+    /** true=仅清空嵌入覆盖（不动全局/场景覆盖），回退 yml 静态嵌入配置 */
+    private boolean resetEmbedding;
+
+    /** 嵌入分区覆盖条目：与全局字段不同，显式空串=清除该字段覆盖（嵌入分区按字段精细控制） */
+    @Data
+    public static class EmbeddingOverride {
+        /** 嵌入接口地址覆盖；null=保留现状，空串=清除覆盖回退静态 */
+        private String baseUrl;
+        /** 新嵌入密钥；null=保留现状，空串=清除覆盖回退静态 */
+        private String apiKey;
+        /** 嵌入模型名覆盖；null=保留现状，空串=清除覆盖回退静态 */
+        private String model;
+        /** 向量维度覆盖；null=保留现状。⚠️ 与 Qdrant 集合维度绑死，改动需重建索引 */
+        private Integer dimensions;
+    }
 
     /** 单场景覆盖条目：任一字段为空=该字段清除覆盖，回退全局覆盖/静态配置 */
     @Data

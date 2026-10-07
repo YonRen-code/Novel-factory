@@ -80,22 +80,34 @@ public class LlmConfigDTO {
     }
 
     /**
-     * Embedding 接入的只读视图：yml module.embedding-api 直连建客户端、不参与运行时覆盖
-     * （向量召回挂的是独立供应商与账单，覆盖错一处索引就作废，故只展示不开放热改）
+     * Embedding 接入视图：静态生效值 + 运行时覆盖（独立分区，覆盖经 applyEmbedding 落到向量调用链，
+     * 客户端按 地址|密钥|模型 缓存、变化即换新客户端，保存即时生效）。apiKey 任何一侧都只回掩码
      */
     @Data
     public static class EmbeddingView {
-        /** 是否已配置 embedding-api（false=向量召回不可用，生成主链路不受影响） */
+        /** 是否已配置静态 embedding-api（false=向量召回不可用，生成主链路不受影响） */
         private boolean configured;
-        /** 嵌入模型名 */
+        /** 静态生效嵌入模型名 */
         private String model;
-        /** 接口地址（非机密，原文返回便于核对指向） */
+        /** 静态接口地址（非机密，原文返回便于核对指向） */
         private String baseUrl;
-        /** 是否已配置 apiKey */
+        /** 静态是否已配置 apiKey */
         private boolean hasKey;
-        /** apiKey 掩码，未设置时为 null */
+        /** 静态 apiKey 掩码，未设置时为 null */
         private String apiKeyMasked;
-        /** 向量维度（null=走供应商默认） */
+        /** 静态向量维度（null=走供应商默认） */
         private Integer dimensions;
+        /** 是否存在嵌入运行时覆盖 */
+        private boolean overridden;
+        /** 覆盖后的接口地址（未覆盖为 null） */
+        private String overrideBaseUrl;
+        /** 覆盖密钥是否存在（原文不回传） */
+        private boolean overrideHasKey;
+        /** 覆盖密钥掩码（未设置时为 null） */
+        private String overrideApiKeyMasked;
+        /** 覆盖后的模型名（未覆盖为 null） */
+        private String overrideModel;
+        /** 覆盖后的向量维度（未覆盖为 null） */
+        private Integer overrideDimensions;
     }
 }

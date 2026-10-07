@@ -2,6 +2,8 @@ package cn.novel.yonren.infrastructure.gateway;
 
 import cn.novel.yonren.domain.novel.adapter.llm.EmbeddingGateway;
 import cn.novel.yonren.domain.novel.model.valobj.StoryVO;
+import cn.novel.yonren.domain.novel.service.armory.LlmRuntimeConfig;
+import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,10 @@ public class SpringAiEmbeddingGateway implements EmbeddingGateway {
     /** 出网请求工厂（连接/读取超时）：避免供应商静默不回包时向量化调用永久阻塞作业 */
     private final ClientHttpRequestFactory requestFactory;
 
+    /** 运行时覆盖源（嵌入分区）：字段注入不动既有构造器签名；单测直构时为 null，embed 内已判空 */
+    @Resource
+    private LlmRuntimeConfig llmRuntimeConfig;
+
     public SpringAiEmbeddingGateway(@Value("${spring.ai.retry.embedding-max-attempts:3}") int maxAttempts,
                                     @Value("${novel.llm.connect-timeout-seconds:20}") int connectTimeoutSeconds,
                                     @Value("${novel.llm.read-timeout-seconds:600}") int readTimeoutSeconds) {
@@ -51,6 +57,11 @@ public class SpringAiEmbeddingGateway implements EmbeddingGateway {
     public List<float[]> embed(StoryVO.Module module, List<String> texts) {
         if (module == null || module.getEmbeddingApi() == null) {
             throw new IllegalStateException("未配置 embedding-api（yml story.module.embedding-api），无法向量化");
+        }
+        // 运行时嵌入覆盖（前端「向量检索分区」表单）：客户端按 地址|密钥|模型 缓存，
+        // 覆盖变化即换新客户端，保存后下次向量调用即时生效。llmRuntimeConfig 允许为 null（单测直构）
+        if (llmRuntimeConfig != null) {
+            module = llmRuntimeConfig.applyEmbedding(module);
         }
         OpenAiEmbeddingModel model = embeddingModel(module);
         List<String> capped = capInputLength(texts);

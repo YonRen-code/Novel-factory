@@ -41,11 +41,23 @@ public class LlmRuntimeConfig {
         private Long maxTokens;
         /** 分场景覆盖：key=ModelScene.configKey；null/空表=无场景覆盖 */
         private Map<String, SceneOverlay> scenes;
+        /** Embedding 分区覆盖（独立供应商与账单，与聊天链路互不影响）；null=无覆盖 */
+        private String embedBaseUrl;
+        private String embedApiKey;
+        private String embedModel;
+        private Integer embedDimensions;
 
         public boolean isEmpty() {
             return StringUtils.isBlank(baseUrl) && StringUtils.isBlank(apiKey)
                     && StringUtils.isBlank(model) && maxTokens == null
-                    && (scenes == null || scenes.isEmpty());
+                    && (scenes == null || scenes.isEmpty())
+                    && !hasEmbeddingOverride();
+        }
+
+        /** 是否存在嵌入覆盖（嵌入任一字段非空即视为有覆盖） */
+        public boolean hasEmbeddingOverride() {
+            return StringUtils.isNotBlank(embedBaseUrl) || StringUtils.isNotBlank(embedApiKey)
+                    || StringUtils.isNotBlank(embedModel) || embedDimensions != null;
         }
     }
 
@@ -108,11 +120,37 @@ public class LlmRuntimeConfig {
         }
         next.setMaxTokens(request.getMaxTokens() != null ? request.getMaxTokens() : current.getMaxTokens());
         next.setScenes(mergeScenes(current, request));
+        mergeEmbedding(current, next, request);
         overlay = next;
         persist(next);
-        log.info("LLM 运行时覆盖已保存：{}（场景覆盖 {} 项）", next,
-                next.getScenes() == null ? 0 : next.getScenes().size());
+        log.info("LLM 运行时覆盖已保存：{}（场景覆盖 {} 项，嵌入覆盖 {}）", next,
+                next.getScenes() == null ? 0 : next.getScenes().size(),
+                next.hasEmbeddingOverride() ? "生效" : "无");
         return view();
+    }
+
+    /**
+     * 嵌入覆盖合并：resetEmbedding=true → 清空（next 字段保持 null）；
+     * request.embedding=null → 保持现状（全局/场景保存请求不误伤嵌入覆盖）；
+     * 否则按字段合并——null=保留现状，空串=显式清除该字段覆盖（trimToNull）。
+     * 覆盖即时生效：嵌入客户端按 地址|密钥|模型 缓存，覆盖变化即换新客户端，无需重启
+     */
+    private static void mergeEmbedding(Overlay current, Overlay next, LlmConfigSaveRequestDTO request) {
+        if (request.isResetEmbedding()) {
+            return;
+        }
+        LlmConfigSaveRequestDTO.EmbeddingOverride in = request.getEmbedding();
+        if (in == null) {
+            next.setEmbedBaseUrl(current.getEmbedBaseUrl());
+            next.setEmbedApiKey(current.getEmbedApiKey());
+            next.setEmbedModel(current.getEmbedModel());
+            next.setEmbedDimensions(current.getEmbedDimensions());
+            return;
+        }
+        next.setEmbedBaseUrl(in.getBaseUrl() == null ? current.getEmbedBaseUrl() : StringUtils.trimToNull(in.getBaseUrl()));
+        next.setEmbedApiKey(in.getApiKey() == null ? current.getEmbedApiKey() : StringUtils.trimToNull(in.getApiKey()));
+        next.setEmbedModel(in.getModel() == null ? current.getEmbedModel() : StringUtils.trimToNull(in.getModel()));
+        next.setEmbedDimensions(in.getDimensions() != null ? in.getDimensions() : current.getEmbedDimensions());
     }
 
     /**
@@ -171,6 +209,33 @@ public class LlmRuntimeConfig {
         copy.setSceneModels(module.getSceneModels());
         // 场景级模型降级链必须随拷贝走——否则一旦存在运行时覆盖（前端设置面板），
         // 降级链就被静默丢弃，挂机时的"换模型救调用"能力会无声失效
+        copy.setModelFallbacks(module.getModelFallbacks());
+        return copy;
+    }
+
+    /**
+     * Embedding 覆盖落到 module（独立分区，绝不碰聊天链路的 aiApi/chatModel/scenes）。
+     * 无覆盖原样返回；嵌入客户端按 地址|密钥|模型 缓存，覆盖变化即换新客户端，保存后下次向量调用即时生效
+     */
+    public StoryVO.Module applyEmbedding(StoryVO.Module module) {
+        Overlay o = overlay;
+        if (module == null || module.getEmbeddingApi() == null || o == null || !o.hasEmbeddingOverride()) {
+            return module;
+        }
+        StoryVO.Module.EmbeddingApi original = module.getEmbeddingApi();
+        StoryVO.Module.EmbeddingApi api = new StoryVO.Module.EmbeddingApi();
+        api.setBaseUrl(StringUtils.isNotBlank(o.getEmbedBaseUrl()) ? o.getEmbedBaseUrl() : original.getBaseUrl());
+        api.setApiKey(StringUtils.isNotBlank(o.getEmbedApiKey()) ? o.getEmbedApiKey() : original.getApiKey());
+        api.setEmbeddingsPath(original.getEmbeddingsPath());
+        api.setBatchSize(original.getBatchSize());
+        api.setModel(StringUtils.isNotBlank(o.getEmbedModel()) ? o.getEmbedModel() : original.getModel());
+        api.setDimensions(o.getEmbedDimensions() != null ? o.getEmbedDimensions() : original.getDimensions());
+        StoryVO.Module copy = new StoryVO.Module();
+        copy.setAiApi(module.getAiApi());
+        copy.setChatModel(module.getChatModel());
+        copy.setEmbeddingApi(api);
+        copy.setUnifiedModelEnabled(module.getUnifiedModelEnabled());
+        copy.setSceneModels(module.getSceneModels());
         copy.setModelFallbacks(module.getModelFallbacks());
         return copy;
     }
@@ -301,8 +366,8 @@ public class LlmRuntimeConfig {
         return view;
     }
 
-    /** Embedding 分区只读视图（不参与运行时覆盖，仅透出 yml 静态配置与掩码） */
-    private static LlmConfigDTO.EmbeddingView toEmbeddingView(StoryVO.Module.EmbeddingApi embeddingApi) {
+    /** Embedding 分区视图：静态生效值 + 运行时覆盖（密钥只给掩码） */
+    private LlmConfigDTO.EmbeddingView toEmbeddingView(StoryVO.Module.EmbeddingApi embeddingApi) {
         if (embeddingApi == null) {
             return null;
         }
@@ -315,6 +380,17 @@ public class LlmRuntimeConfig {
             view.setApiKeyMasked(mask(embeddingApi.getApiKey()));
         }
         view.setDimensions(embeddingApi.getDimensions());
+        Overlay o = overlay;
+        if (o != null && o.hasEmbeddingOverride()) {
+            view.setOverridden(true);
+            view.setOverrideBaseUrl(StringUtils.isNotBlank(o.getEmbedBaseUrl()) ? o.getEmbedBaseUrl() : null);
+            if (StringUtils.isNotBlank(o.getEmbedApiKey())) {
+                view.setOverrideHasKey(true);
+                view.setOverrideApiKeyMasked(mask(o.getEmbedApiKey()));
+            }
+            view.setOverrideModel(StringUtils.isNotBlank(o.getEmbedModel()) ? o.getEmbedModel() : null);
+            view.setOverrideDimensions(o.getEmbedDimensions());
+        }
         return view;
     }
 

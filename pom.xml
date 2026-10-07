@@ -72,19 +72,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- mysql-connector-java 8.0.28 传递依赖 protobuf-java 3.11.4，就近优先会压掉
-                 qdrant client 1.14.1 需要的 3.25.x，导致 gRPC 序列化时抛
-                 UnsupportedOperationException 启动失败——此处统一钉到 3.25.5 -->
+            <!-- 钉住 protobuf：qdrant client 1.14 的 gRPC 依赖 3.25.x，
+                 防止其它传递依赖（曾为 mysql-connector 的 3.11.x）就近优先压低版本导致启动失败 -->
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
                 <version>3.25.5</version>
             </dependency>
-            
-            <!-- # 多数据源路由配置
-                 # mysql 5.x driver-class-name: com.mysql.jdbc.Driver    mysql-connector-java 5.1.34
-                 # mysql 8.x driver-class-name: com.mysql.cj.jdbc.Driver mysql-connector-java 8.0.22-->
-            
+
             <dependency>
                 <groupId>com.alibaba</groupId>
                 <artifactId>fastjson</artifactId>

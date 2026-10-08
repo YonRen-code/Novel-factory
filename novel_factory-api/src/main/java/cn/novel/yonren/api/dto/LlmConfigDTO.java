@@ -27,6 +27,11 @@ public class LlmConfigDTO {
 
     /** 分场景路由总开关（yml module.unified-model-enabled）：true=全场景统一走 chat-model */
     private boolean unifiedModelEnabled;
+    /**
+     * 场景级 API 总开关（运行时）：false=所有场景强制走全局 ai-api 的地址与密钥，
+     * 场景自带 base-url/api-key（yml 与场景覆盖）一律不生效；true/缺省=场景可自带地址密钥
+     */
+    private Boolean sceneApiEnabled;
     /** 统一 chat-model 静态配置（unified-model-enabled=true 或场景未配置时的生效来源） */
     private ModelView unified;
     /** 场景模型矩阵（按 ModelScene 枚举序，含静态生效值与运行时覆盖） */
@@ -75,6 +80,12 @@ public class LlmConfigDTO {
         private Long overrideMaxTokens;
         /** 运行时覆盖的采样温度（未覆盖为 null） */
         private Double overrideTemperature;
+        /** 运行时覆盖的场景级接口地址（未覆盖为 null；密钥类字段只回掩码） */
+        private String overrideBaseUrl;
+        /** 该场景是否已覆盖 apiKey（原文不回传） */
+        private boolean overrideHasKey;
+        /** 覆盖密钥掩码（未设置为 null） */
+        private String overrideApiKeyMasked;
         /** 该场景是否存在运行时覆盖 */
         private boolean overridden;
     }

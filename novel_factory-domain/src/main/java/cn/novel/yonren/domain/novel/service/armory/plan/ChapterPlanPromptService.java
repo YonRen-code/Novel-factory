@@ -107,7 +107,7 @@ public class ChapterPlanPromptService {
                 // 段计划一次性覆盖多章：无单章推进额度——时序锚按锁定值渲染（各章 timeAdvance 由正文层的章计划声明）
                 null));
         // 新书首段（无摘要）：追加设定兜底年龄锚——否则首段计划在零年龄约束下生成，
-        // 计划层会写下主角当前阶段做不到的事件 实测：4 岁主角"翻账本对数目"）
+        // 计划层会写下主角当前阶段做不到的事件（实测：幼龄主角"翻账本对数目"这类跨阶段行为）
         StoryContextEntity planStoryContext = dynamicContext.getStoryContextEntity();
         if (planStoryContext != null) {
             chapterMemoryService.prependSettingsAnchorIfNoSummaries(memoryBlocks,
@@ -232,15 +232,15 @@ public class ChapterPlanPromptService {
         // 卷末清账·限期回收：上一阶段出口裁决为"可自然兑现"的未填伏笔，规划必须安排回收路径
         //（以结算台账为准——裁决阶段末章 == 本段起点-1 才生效，首发/段中起点无结算不注入）
         appendSettlementRecovery(sb, dynamicContext.getForeshadowSettlements(), startNo);
-        // 伏笔排期块P2b）：把"本段必须埋什么、必须收什么、哪些逾期了"摆到规划那一刻。
+        // 伏笔排期块：把"本段必须埋什么、必须收什么、哪些逾期了"摆到规划那一刻。
         // 这是 P2 唯一真正把"兑现时机"交给长视野的地方——没有它，段计划仍只能本段内自产自销。
         if (endNo != null) {
             appendForeshadowScheduleBlock(sb, dynamicContext.getForeshadowSchedules(), startNo, endNo);
         }
         // 密度反馈：前文有"料少字少"的章节时，责令本段计划提高事件密度（治本的反注水）
         appendDensityFeedback(sb, dynamicContext.getChapterSummaries());
-        // 伏笔长度反馈：伏笔"埋了就收"（实测平均跨度 2.23 章、77% 在 2 章内）
-        // 是本书读起来浅的直接原因；埋多长由计划决定，所以必须在规划层治，写手无权改
+        // 伏笔长度反馈：伏笔"埋了就收"是长篇读起来浅的直接原因；
+        // 埋多长由计划决定，所以必须在规划层治，写手无权改
         appendForeshadowSpanFeedback(sb, dynamicContext.getChapterSummaries());
         // 地点轨迹：把"最近都在哪儿、哪些地点已建立"摆给规划层——观测不到就不会被修
         String placeBlock = PlaceTrajectoryPolicy.renderTrajectory(dynamicContext.getChapterSummaries());
@@ -279,7 +279,7 @@ public class ChapterPlanPromptService {
         sb.append("\n\n").append(PLAN_SCHEMA_MARKER).append(":")
                 .append("\n{\"chapters\":[{\"chapterNo\":").append(startNo)
                 .append(",\"title\":\"章节标题\",\"goal\":\"本章目标\",\"characters\":[\"角色A\"],")
-                .append("\"keyEvents\":[\"关键事件1\",\"关键事件2\",\"关键事件3\",\"关键事件4\"],\"timeAdvance\":\"推进2周，至2003年10月下旬\",\"endingHook\":\"结尾悬念\",")
+                .append("\"keyEvents\":[\"关键事件1\",\"关键事件2\",\"关键事件3\",\"关键事件4\"],\"timeAdvance\":\"推进2周，至XXXX年10月下旬\",\"endingHook\":\"结尾悬念\",")
                 .append("\"chapterType\":\"normal\",\"suspenseBeat\":\"档位表原文之一\"");
         if (blueprint != null && blueprint.getMainLineByChapter() != null
                 && !blueprint.getMainLineByChapter().isEmpty()) {
@@ -311,8 +311,8 @@ public class ChapterPlanPromptService {
                 .append("**本规则同样约束【必须埋设】注入的排期项**：排期意图与本锚冲突时")
                 .append("（如要求幼龄角色书写文字/数字、独立完成精细操作），改写为该阶段内的合法表达后照常埋设")
                 .append("（保留意图指向与回收章），不得原样照搬——排期项不豁免时序锚。");
-        // 能力展示节奏实测）：锚把"注视/倾向"合法化后，模型立即收敛到
-        // 成本最低的合规模板——5 章全部写成「主角微动作 → 旁人注意 → 不像孩子」，4 章展示 5 种能力。
+        // 能力展示节奏：锚把"注视/倾向"合法化后，模型立即收敛到
+        // 成本最低的合规模板——连续多章都写成「主角微动作 → 旁人注意 → 不像孩子」。
         // 合规不等于可以每章来一次；展示的稀缺性本身就是效果的一部分。
         rule.append("\n【能力展示节奏·硬约束】本段 5 章中，**至多 2 章**可安排主角能力/早慧展示类关键事件；")
                 .append("相邻两个展示章不得同类（动作暗示 / 旁人评价 / 专注偏好必须轮换或间隔空章）；")
@@ -320,14 +320,14 @@ public class ChapterPlanPromptService {
                 .append("没有展示任务的章，关键事件落在人际、事件、选择与两难上；")
                 .append("早慧的显形走观察者跨章累积的认知变化（一条暗线多个观察者接力），")
                 .append("而不是每章单发一个展示时刻。");
-        // 对话承载规则实测）：ch29 的 4 个关键事件里 2 个是
-        // "内心梳理能力/制定吸收优先级"型独白事件，写手交付仅 12 句对白——独白事件写不出互动。
+        // 对话承载规则：关键事件里若混入"内心梳理/制定计划"型独白事件，
+        // 写手交付的对白句数会明显偏低——独白事件写不出互动。
         rule.append("\n【对话承载·硬约束】每章关键事件**至少 1 个**由人物当面的对话/冲突/协作承载；")
                 .append("**禁止**整章关键事件全部由\"内心梳理/制定计划/复盘总结/能力自评\"类独白事件构成——")
                 .append("独白事件不产生互动，写手只能交付独白章；")
                 .append("相邻两章不得连续独白主导；主角需要\"想明白一件事\"时，")
                 .append("优先让这件事在对峙/合作/教学的**对话中**发生，内心独白只作决策落点不作事件本体。");
-        // 时间衔接规则实测）：ch43 计划排"夜里睡熟"而锚/账本为"周日白天"，
+        // 时间衔接规则：计划排"夜里睡熟"而锚/账本仍停在白天时，
         // 写手照排夜景 → 审计按锚判事实矛盾，补丁无法修复（改时段=重构整章）成质量债。
         // 与年龄判据同源：锚是时间/年龄的唯一依据，计划层排事件必须先衔接时段。
         rule.append("\n【时间衔接·硬约束】关键事件必须从上方【时序锚】记载的当前时间自然延展：")
@@ -465,7 +465,7 @@ public class ChapterPlanPromptService {
         List<String> mustPay = new ArrayList<>();
         List<String> overdue = new ArrayList<>();
         // MISSED 过滤：已判"到期未埋"的线不再注入【必须埋设】——判死条目重复注入
-        // 会让规划层反复安排同一条线（46-50/51-60 批实测连续 MISSED）
+        // 会让规划层反复安排同一条线（实测会连续多段 MISSED）
         List<ForeshadowScheduleEntity.ScheduleItem> live = items.stream()
                 .filter(item -> item != null && !ForeshadowScheduleEntity.STATUS_MISSED.equals(item.getStatus()))
                 .toList();

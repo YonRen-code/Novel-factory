@@ -116,8 +116,8 @@ public final class ChapterPlanChecks {
                     item.getChapterType() == cn.novel.yonren.types.enums.ChapterTypeVO.TRANSITION));
         }
         List<String> issues = new ArrayList<>();
-        // 描述去重**不依赖档位表**，所以放在 usable 判断之外——无蓝图模式同样要拦
-        //：实测第 11–15 章五章回填的 suspenseBeat 逐字相同，而下标比较报一次后就沉默了）
+        // 描述去重**不依赖档位表**，所以放在 usable 判断之外——无蓝图模式同样要拦；
+        // 实测：多章回填同一 suspenseBeat 逐字相同时，只做档位下标比较会报过一次就沉默
         issues.addAll(SuspenseLadderPolicy.duplicateBeatViolations(beats));
         if (SuspenseLadderPolicy.usable(ladder)) {
             issues.addAll(SuspenseLadderPolicy.violations(beats, ladder));
@@ -250,6 +250,37 @@ public final class ChapterPlanChecks {
                 + "允许跳月/跳季但必须显式写出推进到何时）；"
                 + "\n2. 全段 timeAdvance 必须**单调递增**、不得倒退，并与阶段末目标（stageEndYear/stageEndAge）一致；"
                 + "\n3. 这是年龄/故事时间推进的唯一合法通道——不声明，时间锁就永远不会放行。";
+    }
+
+    /**
+     * 追进度跳接校验：跳接段（蓝图挂 pacing 且滞后 ≥1 年）的末章 timeAdvance 必须显式推进到
+     * 预算年份（或其次年——段预算常写作两年区间）。只做包含性检查：timeAdvance 是
+     * 自由文本，能写出目标年份即代表跳跃真实发生；缺声明的情形由 {@link #validateTimeAdvance} 负责
+     */
+    public static String validateTimeAdvancePacing(List<ChapterPlanItemEntity> chapters, Integer budgetStartYear) {
+        if (budgetStartYear == null || chapters == null || chapters.isEmpty()) {
+            return null;
+        }
+        ChapterPlanItemEntity last = chapters.get(chapters.size() - 1);
+        if (last == null || StringUtils.isBlank(last.getTimeAdvance())) {
+            return null;
+        }
+        for (int y : new int[]{budgetStartYear, budgetStartYear + 1}) {
+            if (last.getTimeAdvance().contains(String.valueOf(y))) {
+                return null;
+            }
+        }
+        return "末章（第" + last.getChapterNo() + "章）timeAdvance 未推进到预算年份 " + budgetStartYear
+                + "（当前声明：" + brief(last.getTimeAdvance()) + "）";
+    }
+
+    public static String timeAdvancePacingFeedback(Integer budgetStartYear) {
+        return "\n\n【上一版计划的时间跳跃被机械驳回】本段是追进度跳接段：故事时间必须从当前锚年直接"
+                + "跳跃到大纲预算年 " + budgetStartYear + " 年。\n修正要求（逐条执行）："
+                + "\n1. 第一章开篇即写时间跳跃（「N 年后」式过渡，可配合蒙太奇交代跨越期内的关键变化）；"
+                + "\n2. 末章 timeAdvance 必须显式包含年份「" + budgetStartYear + " 年」（如：推进到 "
+                + budgetStartYear + " 年秋）；"
+                + "\n3. 结转任务一律在跳跃后的时间线下执行或一句带过清偿，不得再展开跳跃前的日常场景。";
     }
 
     public static String mainLineFeedback(String issue) {

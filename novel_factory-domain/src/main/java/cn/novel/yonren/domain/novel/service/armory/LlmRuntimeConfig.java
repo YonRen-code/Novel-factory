@@ -41,6 +41,12 @@ public class LlmRuntimeConfig {
         private Long maxTokens;
         /** 分场景覆盖：key=ModelScene.configKey；null/空表=无场景覆盖 */
         private Map<String, SceneOverlay> scenes;
+        /**
+         * 场景级 API 总开关：false=所有场景强制走全局 ai-api 的地址与密钥（忽略场景级 base-url/api-key）；
+         * true/null=场景可自带地址密钥。null 视为"未设置"（沿用静态声明，静态亦未声明时按 true=保持旧行为，
+         * 避免升级后 chapter-judge 这类第二模型族被静默拉回主族）
+         */
+        private Boolean sceneApiEnabled;
         /** Embedding 分区覆盖（独立供应商与账单，与聊天链路互不影响）；null=无覆盖 */
         private String embedBaseUrl;
         private String embedApiKey;
@@ -51,7 +57,13 @@ public class LlmRuntimeConfig {
             return StringUtils.isBlank(baseUrl) && StringUtils.isBlank(apiKey)
                     && StringUtils.isBlank(model) && maxTokens == null
                     && (scenes == null || scenes.isEmpty())
+                    && sceneApiEnabled == null
                     && !hasEmbeddingOverride();
+        }
+
+        /** 场景级 API 开关是否打开（null 视为未设置，按 true 处理=保持旧行为） */
+        public boolean sceneApiOn() {
+            return !Boolean.FALSE.equals(sceneApiEnabled);
         }
 
         /** 是否存在嵌入覆盖（嵌入任一字段非空即视为有覆盖） */
@@ -67,9 +79,14 @@ public class LlmRuntimeConfig {
         private String model;
         private Long maxTokens;
         private Double temperature;
+        /** 场景级 base-url 覆盖；null=不覆盖（回退场景 yml / 全局） */
+        private String baseUrl;
+        /** 场景级 api-key 覆盖；null=保留现状，空串=显式清除（密钥不回显，空白提交必须区别于"清除"） */
+        private String apiKey;
 
         public boolean isEmpty() {
-            return StringUtils.isBlank(model) && maxTokens == null && temperature == null;
+            return StringUtils.isBlank(model) && maxTokens == null && temperature == null
+                    && StringUtils.isBlank(baseUrl) && StringUtils.isBlank(apiKey);
         }
     }
 
@@ -119,12 +136,16 @@ public class LlmRuntimeConfig {
             next.setModel(current.getModel());
         }
         next.setMaxTokens(request.getMaxTokens() != null ? request.getMaxTokens() : current.getMaxTokens());
+        // 场景级 API 开关：null=保持现状（全局/嵌入保存请求不带该字段，不误伤）
+        next.setSceneApiEnabled(request.getSceneApiEnabled() != null
+                ? request.getSceneApiEnabled() : current.getSceneApiEnabled());
         next.setScenes(mergeScenes(current, request));
         mergeEmbedding(current, next, request);
         overlay = next;
         persist(next);
-        log.info("LLM 运行时覆盖已保存：{}（场景覆盖 {} 项，嵌入覆盖 {}）", next,
+        log.info("LLM 运行时覆盖已保存：{}（场景覆盖 {} 项，场景级 API 开关={}，嵌入覆盖 {}）", next,
                 next.getScenes() == null ? 0 : next.getScenes().size(),
+                next.sceneApiOn() ? "开" : "关（全部走全局地址密钥）",
                 next.hasEmbeddingOverride() ? "生效" : "无");
         return view();
     }
@@ -157,6 +178,8 @@ public class LlmRuntimeConfig {
      * 场景覆盖合并：resetScenes=true 或 request.scenes 为空表 → 清空；
      * request.scenes=null → 保持现状（全局字段保存请求不带 scenes，不误伤场景覆盖）；
      * 否则全量替换（前端矩阵整表提交，条目内空字段=清除该字段覆盖）。
+     * apiKey 是全表唯一的例外（密钥不回显，前端永远拿不到原文）：null=保留该场景现有密钥，
+     * 空串=显式清除——否则"改个模型顺手保存"会把已配的密钥静默清掉。
      * 未知场景 key（非 ModelScene.configKey）丢弃并告警——存进去也永远不会被路由匹配
      */
     private static Map<String, SceneOverlay> mergeScenes(Overlay current, LlmConfigSaveRequestDTO request) {
@@ -183,9 +206,22 @@ public class LlmRuntimeConfig {
             so.setModel(StringUtils.trimToNull(in.getModel()));
             so.setMaxTokens(in.getMaxTokens());
             so.setTemperature(in.getTemperature());
+            so.setBaseUrl(StringUtils.trimToNull(in.getBaseUrl()));
+            so.setApiKey(in.getApiKey() == null
+                    ? currentApiKeyOf(current, entry.getKey())
+                    : StringUtils.trimToNull(in.getApiKey()));
             merged.put(entry.getKey(), so);
         }
         return merged.isEmpty() ? null : merged;
+    }
+
+    /** 该场景现有 apiKey 覆盖（供"null=保留"合并用）；无则 null */
+    private static String currentApiKeyOf(Overlay current, String sceneKey) {
+        if (current == null || current.getScenes() == null) {
+            return null;
+        }
+        SceneOverlay prev = current.getScenes().get(sceneKey);
+        return prev == null ? null : prev.getApiKey();
     }
 
     /** apiKey 覆盖落到 module（baseUrl + apiKey）；无覆盖原样返回 */
@@ -200,6 +236,7 @@ public class LlmRuntimeConfig {
         aiApi.setApiKey(StringUtils.isNotBlank(o.getApiKey()) ? o.getApiKey() : original == null ? null : original.getApiKey());
         if (original != null) {
             aiApi.setCompletionsPath(original.getCompletionsPath());
+            aiApi.setZeroDataRetention(original.getZeroDataRetention());
         }
         StoryVO.Module copy = new StoryVO.Module();
         copy.setAiApi(aiApi);
@@ -261,23 +298,55 @@ public class LlmRuntimeConfig {
 
     /**
      * 场景感知的模型覆盖：先按全局覆盖合成（applyModel(selected)），再叠加该场景的覆盖条目——
-     * 按字段优先级 场景覆盖 > 全局覆盖 > 静态。场景未配置覆盖时与全局路径完全一致
+     * 按字段优先级 场景覆盖 &gt; 全局覆盖 &gt; 静态。场景未配置覆盖时与全局路径完全一致。
+     *
+     * <p>场景级 API 开关关闭（sceneApiEnabled=false）时，场景自带的 base-url/api-key/completionsPath
+     * 一律抹掉（置 null）——网关据此回落全局 ai-api，实现"一个地址密钥打天下"。
+     * 注意：只抹地址密钥，不抹模型名（开关管的是"走哪个端点"，不是"用哪个模型"）
      */
     public StoryVO.Module.ChatModel applyModel(ModelScene scene, StoryVO.Module.ChatModel selected) {
         StoryVO.Module.ChatModel merged = applyModel(selected);
         SceneOverlay so = sceneOverlay(scene);
-        if (so == null) {
-            return merged;
+        StoryVO.Module.ChatModel result = merged;
+        if (so != null) {
+            result = copyOf(merged);
+            result.setModel(StringUtils.isNotBlank(so.getModel()) ? so.getModel() : merged.getModel());
+            result.setMaxTokens(so.getMaxTokens() != null ? so.getMaxTokens() : merged.getMaxTokens());
+            result.setTemperature(so.getTemperature() != null ? so.getTemperature() : merged.getTemperature());
+            // 场景级地址密钥覆盖（仅在开关打开时生效；关闭时下面的统一抹除接管）
+            if (sceneApiOn() && StringUtils.isNotBlank(so.getBaseUrl())) {
+                result.setBaseUrl(so.getBaseUrl());
+            }
+            if (sceneApiOn() && StringUtils.isNotBlank(so.getApiKey())) {
+                result.setApiKey(so.getApiKey());
+            }
         }
+        if (!sceneApiOn()) {
+            // 强制全局端点：抹掉场景层来源的地址/密钥/补全路径，交给网关回落 module.aiApi
+            result = copyOf(result);
+            result.setBaseUrl(null);
+            result.setApiKey(null);
+            result.setCompletionsPath(null);
+        }
+        return result == merged ? merged : result;
+    }
+
+    private static StoryVO.Module.ChatModel copyOf(StoryVO.Module.ChatModel source) {
         StoryVO.Module.ChatModel copy = new StoryVO.Module.ChatModel();
-        copy.setBaseUrl(merged.getBaseUrl());
-        copy.setApiKey(merged.getApiKey());
-        copy.setCompletionsPath(merged.getCompletionsPath());
-        copy.setEnableThinking(merged.getEnableThinking());
-        copy.setModel(StringUtils.isNotBlank(so.getModel()) ? so.getModel() : merged.getModel());
-        copy.setMaxTokens(so.getMaxTokens() != null ? so.getMaxTokens() : merged.getMaxTokens());
-        copy.setTemperature(so.getTemperature() != null ? so.getTemperature() : merged.getTemperature());
+        copy.setModel(source.getModel());
+        copy.setMaxTokens(source.getMaxTokens());
+        copy.setTemperature(source.getTemperature());
+        copy.setEnableThinking(source.getEnableThinking());
+        copy.setBaseUrl(source.getBaseUrl());
+        copy.setApiKey(source.getApiKey());
+        copy.setCompletionsPath(source.getCompletionsPath());
         return copy;
+    }
+
+    /** 场景级 API 开关是否打开（运行时覆盖优先；未设置时读 yml 声明，再缺省按 true=保持旧行为） */
+    private boolean sceneApiOn() {
+        Overlay o = overlay;
+        return o == null || o.sceneApiOn();
     }
 
     /** 该场景的运行时覆盖条目；场景为 null 或未覆盖时返回 null */
@@ -294,6 +363,8 @@ public class LlmRuntimeConfig {
     public LlmConfigDTO view() {
         Overlay o = overlay;
         LlmConfigDTO dto = new LlmConfigDTO();
+        // 场景级 API 开关：覆盖里没设过则回 null（前端按"未设置=场景可自带 API"展示）
+        dto.setSceneApiEnabled(o == null ? null : o.getSceneApiEnabled());
         if (o == null || o.isEmpty()) {
             dto.setConfigured(false);
             return dto;
@@ -347,6 +418,11 @@ public class LlmRuntimeConfig {
                 row.setOverrideModel(so.getModel());
                 row.setOverrideMaxTokens(so.getMaxTokens());
                 row.setOverrideTemperature(so.getTemperature());
+                row.setOverrideBaseUrl(StringUtils.isNotBlank(so.getBaseUrl()) ? so.getBaseUrl() : null);
+                if (StringUtils.isNotBlank(so.getApiKey())) {
+                    row.setOverrideHasKey(true);
+                    row.setOverrideApiKeyMasked(mask(so.getApiKey()));
+                }
             }
             rows.add(row);
         }

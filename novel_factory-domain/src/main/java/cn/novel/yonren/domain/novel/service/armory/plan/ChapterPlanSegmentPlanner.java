@@ -75,10 +75,17 @@ public class ChapterPlanSegmentPlanner {
         String ladderIssue = ChapterPlanChecks.validateSuspenseAdvance(parsed.plan().getChapters(), suspenseLadder);
         String mainLineIssue = ChapterPlanChecks.validateMainLineAdvance(parsed.plan().getChapters(), mainLine);
         String timeAdvanceIssue = ChapterPlanChecks.validateTimeAdvance(parsed.plan().getChapters());
-        if (ladderIssue == null && mainLineIssue == null && timeAdvanceIssue == null) {
-            log.info("{}主线/章级推进闸门通过（档位表{}；章级推进 {} 条）", label,
+        Integer pacingBudgetYear = blueprint == null ? null : blueprint.getPacingBudgetStartYear();
+        boolean jumpRequired = pacingBudgetYear != null
+                && blueprint.getPacingLagYears() != null && blueprint.getPacingLagYears() >= 1;
+        String pacingIssue = jumpRequired
+                ? ChapterPlanChecks.validateTimeAdvancePacing(parsed.plan().getChapters(), pacingBudgetYear)
+                : null;
+        if (ladderIssue == null && mainLineIssue == null && timeAdvanceIssue == null && pacingIssue == null) {
+            log.info("{}主线/章级推进闸门通过（档位表{}；章级推进 {} 条{}）", label,
                     ChapterPlanChecks.hasUsableLadder(blueprint) ? " " + suspenseLadder.size() + " 档" : "不可用",
-                    mainLine == null ? 0 : mainLine.size());
+                    mainLine == null ? 0 : mainLine.size(),
+                    jumpRequired ? "；追进度跳接校验通过" : "");
             return parsed;
         }
         // 两类违规各自带**差异化修正指令** 教训：反馈不点名就等于让模型原样重生成一遍）
@@ -92,6 +99,9 @@ public class ChapterPlanSegmentPlanner {
         if (timeAdvanceIssue != null) {
             feedback.append(ChapterPlanChecks.timeAdvanceFeedback(timeAdvanceIssue));
         }
+        if (pacingIssue != null) {
+            feedback.append(ChapterPlanChecks.timeAdvancePacingFeedback(pacingBudgetYear));
+        }
         log.warn("{}推进校验未通过，带违规信息重新规划一次：{}｜{}｜{}", label,
                 ladderIssue == null ? "-" : ladderIssue,
                 mainLineIssue == null ? "-" : mainLineIssue,
@@ -103,9 +113,21 @@ public class ChapterPlanSegmentPlanner {
         String stillBadLadder = ChapterPlanChecks.validateSuspenseAdvance(retry.plan().getChapters(), suspenseLadder);
         String stillBadMainLine = ChapterPlanChecks.validateMainLineAdvance(retry.plan().getChapters(), mainLine);
         String stillBadTimeAdvance = ChapterPlanChecks.validateTimeAdvance(retry.plan().getChapters());
+        String stillBadPacing = jumpRequired
+                ? ChapterPlanChecks.validateTimeAdvancePacing(retry.plan().getChapters(), pacingBudgetYear) : null;
+        if (jumpRequired && (stillBadTimeAdvance != null || stillBadPacing != null)) {
+            // 跳接段 fail-closed：放行等于整批继续在旧时间线上空转（实测：整批都在清偿旧债，
+            // 大纲声明的时间跳跃被无视）。时间跳跃无法靠事后体检补救——体检只能报警，打回人工才是唯一出口
+            throw new AppException(ResponseCode.UN_ERROR.getCode(),
+                    label + "追进度跳接两次重规划仍未通过时间校验（大纲预算 " + pacingBudgetYear
+                            + " 年，滞后 " + blueprint.getPacingLagYears() + " 年）。"
+                            + "为防止整批在旧时间线空转，本批终止：请在人工裁决中显式声明时间跳跃，"
+                            + "或调整大纲段时间标记后重试");
+        }
         if (stillBadLadder != null || stillBadMainLine != null || stillBadTimeAdvance != null) {
             // 二次仍不通过 → 告警放行：宁可这一段推进弱一点，也不要因规划僵持让整批失败。
             // 该情形会被体检的 suspenseAdvanceRate / suspenseHold 暴露（观测层看得见），不属静默吞掉
+            // （跳接段例外：上面已 fail-closed，走不到这里）
             log.warn("{}推进校验二次未通过，放行本次计划（已重规划一次）：{}｜{}｜{}", label,
                     stillBadLadder == null ? "-" : stillBadLadder,
                     stillBadMainLine == null ? "-" : stillBadMainLine,
@@ -179,7 +201,7 @@ public class ChapterPlanSegmentPlanner {
 
     /**
      * 解析并按预期章数校验：JSON 可解析但 chapters 数量与预期不符时视为本轮失败（不进入既有
-     * 修复分支，WARN 后留给下一轮重试）。模型常把"第 71-90 章"（20 章心智）与"本批 17 章"
+     * 修复分支，WARN 后留给下一轮重试）。模型常把"整段章号"（长区间心智）与"本批章数"
      * 混算，或被剧情中的'本批收束章'语义带偏提前截止，少章/多章是可自愈的高频故障，
      * 重试成本远低于整批终止。返回实际章数供下一轮注入纠错
      */

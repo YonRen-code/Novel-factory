@@ -399,9 +399,18 @@
                     <h2 class="section-title" data-page-node-id="m1nbxq44CG3VtAfwuNTpcf">场景模型矩阵</h2>
                     <p class="settings-hint" data-page-node-id="bZref5VnUGT8zfPHK2oAmJ">
                         每个生成场景可独立指定模型 / 输出上限 / 采样温度。优先级：场景覆盖 &gt; 全局覆盖（上方表单）&gt; yml 静态配置
-                        （场景条目缺项回落统一 chat-model）。覆盖输入留空 = 清除该字段覆盖、回退下一层；
-                        yml 中标记「独立 API」的场景（第二模型族）地址与密钥不受覆盖影响。保存即生效、跨重启保留。
+                        （场景条目缺项回落统一 chat-model）。覆盖输入留空 = 清除该字段覆盖、回退下一层。保存即生效、跨重启保留。
                     </p>
+                    <div class="scene-api-switch" data-page-node-id="ScApiSwitchRow1">
+                        <label class="switch-label" for="scene_api_enabled">
+                            <input type="checkbox" id="scene_api_enabled" data-page-node-id="ScApiSwitchBox1">
+                            <span>启用场景级 API（每个场景可独立配置 Base URL 与 API Key）</span>
+                        </label>
+                        <span class="settings-hint scene-api-hint" id="scene-api-hint">
+                            关闭时：所有场景强制走上方「模型接入设置」的全局地址与密钥，场景自带地址密钥一律不生效；
+                            打开时：每个场景可自配地址密钥，并在下方各行编辑（留空 = 沿用全局 / yml 静态）。
+                        </span>
+                    </div>
                     <div id="scene-unified-note" class="scene-unified-note hidden" data-page-node-id="R8r8J8KJS0zgnDVcNVYCyZ"></div>
                     <div id="scene-matrix" class="scene-matrix" data-page-node-id="yaWg65yFuJRXZn1MBhvqYF">
                         <p class="empty-hint" data-page-node-id="IW9WpfqJFdm848fjhRHDLj">加载中...</p>

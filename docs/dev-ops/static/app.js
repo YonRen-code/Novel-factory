@@ -1624,6 +1624,8 @@
     const sceneStatusDiv = document.getElementById('scene-config-status');
     const btnSaveSceneConfig = document.getElementById('btn-save-scene-config');
     const btnResetSceneConfig = document.getElementById('btn-reset-scene-config');
+    const inputSceneApiEnabled = document.getElementById('scene_api_enabled');
+    const sceneApiHint = document.getElementById('scene-api-hint');
 
     function renderLlmConfig(data) {
         inputBaseUrl.value = data.baseUrl || '';
@@ -1650,6 +1652,10 @@
             sceneUnifiedNote.classList.add('hidden');
             return;
         }
+        // 场景级 API 开关：null/true=打开（场景可自带地址密钥），false=强制全局
+        const apiOn = data.sceneApiEnabled !== false;
+        inputSceneApiEnabled.checked = apiOn;
+        sceneApiHint.classList.toggle('scene-api-hint-off', !apiOn);
         if (data.unifiedModelEnabled) {
             sceneUnifiedNote.textContent = '分场景路由总开关当前为开启（yml: unified-model-enabled=true）：所有场景统一使用 chat-model，'
                 + '此处场景覆盖仍会在统一模型之上生效。';
@@ -1659,7 +1665,8 @@
         }
         const header = '<div class="scene-row scene-head">'
             + '<span>场景</span><span>静态生效（yml）</span><span>覆盖 · 模型</span>'
-            + '<span>覆盖 · Tokens</span><span>覆盖 · 温度</span><span></span>'
+            + '<span>覆盖 · Tokens</span><span>覆盖 · 温度</span><span>覆盖 · Base URL</span>'
+            + '<span>覆盖 · API Key</span><span></span>'
             + '</div>';
         const rows = data.scenes.map(function (s) {
             const staticText = s.staticModel || '未配置';
@@ -1669,6 +1676,7 @@
             const badges = (s.independentApi ? '<span class="scene-badge scene-badge-api">独立API</span>' : '')
                 + (s.sceneConfigured ? '' : '<span class="scene-badge">回落统一</span>')
                 + (s.overridden ? '<span class="scene-badge scene-badge-on">已覆盖</span>' : '');
+            const disabledAttr = apiOn ? '' : ' disabled';
             return '<div class="scene-row" data-scene-key="' + esc(s.key) + '">'
                 + '<div class="scene-name"><b>' + esc(s.label || s.key) + '</b>'
                 + '<span class="scene-key">' + esc(s.key) + '</span>' + badges + '</div>'
@@ -1677,6 +1685,8 @@
                 + '<input type="text" class="scene-input" data-field="model" placeholder="留空回退" autocomplete="off">'
                 + '<input type="number" class="scene-input" data-field="maxTokens" min="1" placeholder="留空回退" autocomplete="off">'
                 + '<input type="number" class="scene-input" data-field="temperature" min="0" max="2" step="0.1" placeholder="留空回退" autocomplete="off">'
+                + '<input type="text" class="scene-input" data-field="baseUrl" placeholder="留空回退" autocomplete="off"' + disabledAttr + '>'
+                + '<input type="password" class="scene-input" data-field="apiKey" placeholder="留空保留" autocomplete="new-password"' + disabledAttr + '>'
                 + '<button type="button" class="btn-secondary scene-clear" title="清空本行覆盖输入">恢复</button>'
                 + '</div>';
         }).join('');
@@ -1688,6 +1698,17 @@
             rowEl.querySelector('[data-field="model"]').value = s.overrideModel || '';
             rowEl.querySelector('[data-field="maxTokens"]').value = s.overrideMaxTokens != null ? s.overrideMaxTokens : '';
             rowEl.querySelector('[data-field="temperature"]').value = s.overrideTemperature != null ? s.overrideTemperature : '';
+            const baseInput = rowEl.querySelector('[data-field="baseUrl"]');
+            const keyInput = rowEl.querySelector('[data-field="apiKey"]');
+            baseInput.value = s.overrideBaseUrl || '';
+            baseInput.placeholder = apiOn
+                ? ('留空沿用静态：' + (s.independentApi ? '本场景 yml 独立地址' : '全局地址'))
+                : '开关关闭：强制全局地址';
+            keyInput.value = '';
+            // 密钥不回显：已配置时以占位提示（再次提交留空=保留现有覆盖）
+            keyInput.placeholder = s.overrideHasKey
+                ? ('已覆盖（' + (s.overrideApiKeyMasked || '已掩码') + '），留空保留')
+                : '留空沿用静态';
             rowEl.querySelector('.scene-clear').addEventListener('click', function () {
                 rowEl.querySelectorAll('.scene-input').forEach(function (inp) { inp.value = ''; });
             });
@@ -1714,23 +1735,31 @@
             const model = rowEl.querySelector('[data-field="model"]').value.trim();
             const maxTokens = rowEl.querySelector('[data-field="maxTokens"]').value.trim();
             const temperature = rowEl.querySelector('[data-field="temperature"]').value.trim();
-            if (!model && !maxTokens && !temperature) return; // 整行留空 = 该场景清除覆盖
+            const baseUrl = rowEl.querySelector('[data-field="baseUrl"]').value.trim();
+            const apiKey = rowEl.querySelector('[data-field="apiKey"]').value.trim();
+            if (!model && !maxTokens && !temperature && !baseUrl && !apiKey) return; // 整行留空 = 该场景清除覆盖
             const entry = {};
             if (model) entry.model = model;
             if (maxTokens) entry.maxTokens = parseInt(maxTokens, 10);
             if (temperature !== '') entry.temperature = parseFloat(temperature);
+            if (baseUrl) entry.baseUrl = baseUrl;
+            // 密钥只在用户真的填了新值时提交（留空=后端保留该场景现有密钥覆盖，不回显也不清空）
+            if (apiKey) entry.apiKey = apiKey;
             scenes[key] = entry;
         });
         btnSaveSceneConfig.disabled = true;
+        // 开关状态一并提交（null/true=打开，false=强制全局）
+        const body = { scenes: scenes, sceneApiEnabled: inputSceneApiEnabled.checked };
         fetchJson('/api/config/llm', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scenes: scenes })
+            body: JSON.stringify(body)
         })
         .then(function (data) {
             renderLlmConfig(data);
             const count = Object.keys(scenes).length;
-            sceneStatus('场景覆盖已保存：' + count + ' 个场景生效覆盖，其余回退下层配置', 'ok');
+            sceneStatus('场景覆盖已保存：' + count + ' 个场景生效覆盖，其余回退下层配置；场景级 API='
+                + (inputSceneApiEnabled.checked ? '开' : '关（全部走全局地址密钥）'), 'ok');
             showToast('场景模型覆盖已保存并生效');
         })
         .catch(function (err) {
@@ -1815,6 +1844,30 @@
 
     btnSaveSceneConfig.addEventListener('click', saveSceneOverrides);
     btnResetSceneConfig.addEventListener('click', resetSceneOverrides);
+
+    // 场景级 API 开关：勾选/取消即保存（独立于"保存场景覆盖"，开关本身就是一条运行时覆盖）
+    inputSceneApiEnabled.addEventListener('change', function () {
+        const wanted = inputSceneApiEnabled.checked;
+        inputSceneApiEnabled.disabled = true;
+        fetchJson('/api/config/llm', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sceneApiEnabled: wanted })
+        })
+        .then(function (data) {
+            renderLlmConfig(data);
+            sceneStatus(wanted
+                ? '场景级 API 已开启：各场景可自带 Base URL / API Key（在下方各行编辑）'
+                : '场景级 API 已关闭：所有场景强制走全局地址与密钥，场景自带配置不生效', 'ok');
+            showToast(wanted ? '场景级 API 已开启' : '场景级 API 已关闭（统一走全局）');
+        })
+        .catch(function (err) {
+            inputSceneApiEnabled.checked = !wanted; // 回滚勾选态，避免 UI 与后端不一致
+            sceneStatus('场景级 API 开关保存失败：' + err.message, 'error');
+            showToast('开关保存失败：' + err.message);
+        })
+        .finally(function () { inputSceneApiEnabled.disabled = false; });
+    });
 
     // ===== 向量检索分区（可运行时覆盖：地址/密钥/模型/维度；客户端按调用重建，保存即生效） =====
     const embedForm = document.getElementById('embed-form');

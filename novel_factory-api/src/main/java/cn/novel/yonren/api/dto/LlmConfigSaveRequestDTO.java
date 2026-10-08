@@ -26,6 +26,12 @@ public class LlmConfigSaveRequestDTO {
     private boolean reset;
     /** 仅清空分场景覆盖（保留全局覆盖与全局字段语义） */
     private boolean resetScenes;
+    /**
+     * 场景级 API 总开关（null=本次不改动）：false=所有场景强制走全局 ai-api 的 base-url/api-key，
+     * 场景自带地址密钥（yml 与场景覆盖）一律不生效；true=场景可自带地址密钥。
+     * 缺省（从未设置过）=true，保持"场景可自带 API"的既有行为
+     */
+    private Boolean sceneApiEnabled;
     /** 分场景覆盖全量替换表；null=本次不触碰场景覆盖（区别于空表=清空） */
     private Map<String, SceneOverride> scenes;
     /** 嵌入分区覆盖；null=本次不触碰嵌入覆盖；字段级：null=保留现状、空串=清除该字段覆盖 */
@@ -55,9 +61,14 @@ public class LlmConfigSaveRequestDTO {
         private Long maxTokens;
         /** 场景采样温度覆盖；null=清除该字段覆盖 */
         private Double temperature;
+        /** 场景级接口地址覆盖；null/空=清除该字段覆盖（回退场景 yml / 全局地址） */
+        private String baseUrl;
+        /** 场景级新密钥；null=保留该场景现有密钥覆盖（密钥不回显，避免被静默清空），空串=显式清除 */
+        private String apiKey;
 
         public boolean isEmpty() {
-            return model == null && maxTokens == null && temperature == null;
+            return model == null && maxTokens == null && temperature == null
+                    && baseUrl == null && apiKey == null;
         }
     }
 }

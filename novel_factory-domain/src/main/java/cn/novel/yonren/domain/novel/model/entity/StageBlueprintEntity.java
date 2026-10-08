@@ -111,6 +111,12 @@ public class StageBlueprintEntity {
 
     // 上一版蓝图结转任务及处置状态
     private List<CarriedTaskEntity> carriedTasks;
+    // 追进度要求（transient，仅进程内传递）：时序锚年 / 大纲段预算年 / 滞后年数。
+    // 由 BuildStageBlueprintNode 计算、ChapterPlanSegmentPlanner 消费（跳接段 fail-closed 校验）；
+    // fastjson 跳过 transient 不落 rolling-outline.json，每批蓝图重建时重算，无需持久化
+    private transient Integer pacingAnchorYear;
+    private transient Integer pacingBudgetStartYear;
+    private transient Integer pacingLagYears;
     // 终局审查结果（仅收官阶段蓝图写回）：四维核验 + 返工/强制收官标记，随 rolling-outline.json 落盘
     private FinaleAuditEntity finaleAudit;
 

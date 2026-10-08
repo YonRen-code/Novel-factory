@@ -18,6 +18,7 @@ import cn.novel.yonren.domain.novel.service.armory.memory.ForeshadowSettlementSe
 import cn.novel.yonren.domain.novel.service.armory.memory.OutlineSegmentParser;
 import cn.novel.yonren.domain.novel.service.armory.memory.RollingOutlineService;
 import cn.novel.yonren.domain.novel.service.armory.memory.StageExitReviewService;
+import cn.novel.yonren.domain.novel.service.armory.plan.StoryPacing;
 import cn.novel.yonren.domain.novel.service.armory.prompt.valobj.PromptContext;
 import cn.novel.yonren.domain.novel.service.armory.quality.SuspenseLadderPolicy;
 import cn.novel.yonren.types.enums.PromptScene;
@@ -100,8 +101,8 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
         while (rollingOutlineService.needsGeneration(blueprints, batchEnd)) {
             StageBlueprintEntity previous = rollingOutlineService.latestOf(blueprints);
             int windowStart = ( previous == null ? nextChapterNo : previous.getEndChapter() + 1 );
-            // 失败自动重试一次36-40 章实测）：蓝图决定本批任务/退出条件/排期，
-            // 解析失败静默降级的代价是整批在旧蓝图上滑行（排期原地踏步、第 8 阶段任务与出口条件缺位），
+            // 失败自动重试一次：蓝图决定本批任务/退出条件/排期，
+            // 解析失败静默降级的代价是整批在旧蓝图上滑行（排期原地踏步、新阶段任务与出口条件缺位），
             // 一次重试的成本（60s）远低于整批规划缺位——与段推进校验的"重规划一次"同款宽容度。
             StageBlueprintEntity blueprint = null;
             for (int attempt = 1; attempt <= 2 && blueprint == null; attempt++) {
@@ -188,6 +189,8 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
 
         // 未达成的退出条件机械化结转：不信任模型自评，结转清单缺失即补
         mergeUnmetExitConditions(previous, blueprint);
+        // 结转债务上限：跨段滚动的未完成任务超过硬上限的部分降级为背景清偿
+        capCarriedTasks(blueprint);
 
         // 悬念档位表补采：档位表是"主线推进闸门"的唯一标尺，但在完整蓝图 prompt 里
         // 它只是第 11 条要求——实测模型会在长 prompt 里**静默省略**这两个字段。缺了它，锚块不注入、
@@ -203,7 +206,7 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
         // 好把已定档位表一并喂进去（章级推进必须与档位相容，否则两张表会互相打架）。
         repairMainLine(requestParameter, dynamicContext, storyContext, promptContext, blueprint);
 
-        // 伏笔兑现排期表补采P2b）：同为"缺了就只问这一项"的聚焦补采。
+        // 伏笔兑现排期表补采：同为"缺了就只问这一项"的聚焦补采。
         // 放在最后——它要看阶段区间与 hardTotal，与档位/章级推进无依赖但同属"蓝图缺失字段"家族。
         repairForeshadowSchedule(requestParameter, dynamicContext, storyContext, promptContext, blueprint);
 
@@ -211,16 +214,87 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
                 blueprint.getStageNo(), blueprint.getStartChapter(), blueprint.getEndChapter(),
                 blueprint.getTasks() == null ? 0 : blueprint.getTasks().size(),
                 blueprint.getCarriedTasks() == null ? 0 : blueprint.getCarriedTasks().size());
-        // stageEnd 机械校验+回填61-65 批实测）：12.1 要求模型从【进度对齐·大纲路标】
-        // 声明 stageEndYear/Age，但实测会胡写（stageEndYear=1990，早于故事开局 2002 年）——
+        // stageEnd 机械校验+回填：12.1 要求模型从【进度对齐·大纲路标】
+        // 声明 stageEndYear/Age，但实测会胡写（写出早于故事开局的年份）——
         // 不信任声明，以大纲段预算为准校验回填（零成本、确定性，与卷区间的机械钳制同款思路）
         repairStageEndFromOutline(requestParameter, storyContext, blueprint, previous);
+
+        // 追进度三件套：跳接生成为任务队列第一条、结转任务重定基、
+        // 蓝图挂 pacing 要求供段计划 fail-closed 校验——三者缺一，时间跳跃就只活在散文里
+        applyPacing(requestParameter, storyContext, dynamicContext, blueprint);
         return blueprint;
     }
 
     /**
-     * stageEnd 机械校验+回填（2026-10-06）：12.1 要求模型从【进度对齐·大纲路标】声明
-     * stageEndYear/stageEndAge，但实测会胡写（61-65 批 stageEndYear=1990，早于故事开局 2002）。
+     * 追进度三件套：进度滞后此前只活在散文与体检报告里，规划层沿惯性行驶——整批都在
+     * 清偿结转债、把大纲声明的时间跳跃完全无视。三条机械措施：
+     * ①把跳接生成为任务队列第一条（任务才是规划的执行单元，散文指令排不进队列）；
+     * ②entryConstraints 写死结转重定基：跳接后旧债按新时间线清偿，不得拉回跳跃前；
+     * ③蓝图挂 pacing 要求（transient），段计划校验据此 fail-closed（见 ChapterPlanSegmentPlanner）
+     */
+    private void applyPacing(ArmoryCommandEntity requestParameter, StoryContextEntity storyContext,
+                             DefaultArmoryFactory.DynamicContext dynamicContext,
+                             StageBlueprintEntity blueprint) {
+        if (blueprint == null || storyContext == null || StringUtils.isBlank(storyContext.getChapterGoal())) {
+            return;
+        }
+        Integer anchorYear = StoryPacing.latestAnchorYear(dynamicContext.getChapterSummaries());
+        Integer budgetYear = StoryPacing.budgetStartYear(storyContext.getChapterGoal(), blueprint.getStartChapter());
+        if (anchorYear == null || budgetYear == null || budgetYear <= anchorYear) {
+            return;
+        }
+        int lag = budgetYear - anchorYear;
+        blueprint.setPacingAnchorYear(anchorYear);
+        blueprint.setPacingBudgetStartYear(budgetYear);
+        blueprint.setPacingLagYears(lag);
+        String jumpTask = "【追进度·最高优先级】第 " + blueprint.getStartChapter()
+                + " 章开篇执行时间跳跃：「" + lag + " 年后」，故事时间从 " + anchorYear
+                + " 年直接进入 " + budgetYear + " 年段；本段所有场景发生在跳跃后的时间线里";
+        if (blueprint.getTasks() == null) {
+            blueprint.setTasks(new ArrayList<>());
+        }
+        if (blueprint.getTasks().stream().noneMatch(t -> t != null && t.contains("【追进度"))) {
+            blueprint.getTasks().add(0, jumpTask);
+        }
+        if (blueprint.getEntryConstraints() == null) {
+            blueprint.setEntryConstraints(new ArrayList<>());
+        }
+        String rebase = "【时间重定基】本段包含时间跳跃：所有结转任务一律在跳跃后的时间线（" + budgetYear
+                + " 年段）下执行与重述，任务中的「当下」指跳跃后的时间；清偿可以是新场景或一句带过，"
+                + "不得把场景拉回跳跃前";
+        if (blueprint.getEntryConstraints().stream().noneMatch(c -> c != null && c.contains("【时间重定基】"))) {
+            blueprint.getEntryConstraints().add(rebase);
+        }
+        log.info("追进度注入：锚年 {} → 预算年 {}（滞后 {} 年），跳年任务与重定基约束已写入第 {} 段蓝图",
+                anchorYear, budgetYear, lag, blueprint.getStageNo());
+    }
+
+    /** 结转债务硬上限：跨段滚动的未完成任务超过硬上限的部分降级为背景清偿，不再逼规划层专门造场景 */
+    private static final int CARRIED_HARD_CAP = 8;
+
+    private void capCarriedTasks(StageBlueprintEntity blueprint) {
+        List<StageBlueprintEntity.CarriedTaskEntity> carried = blueprint.getCarriedTasks();
+        if (carried == null || carried.size() <= CARRIED_HARD_CAP) {
+            return;
+        }
+        int downgraded = 0;
+        for (int i = CARRIED_HARD_CAP; i < carried.size(); i++) {
+            StageBlueprintEntity.CarriedTaskEntity t = carried.get(i);
+            if (t == null || t.getContent() == null || t.getContent().startsWith("【背景清偿")) {
+                continue;
+            }
+            t.setContent("【背景清偿·一句带过】" + t.getContent());
+            downgraded++;
+        }
+        if (downgraded > 0) {
+            log.info("结转债务上限：{} 条超出硬上限 {}，降级为背景清偿（正文一句带过即可）",
+                    downgraded, CARRIED_HARD_CAP);
+        }
+    }
+
+    /**
+     * stageEnd 机械校验+回填：12.1 要求模型从【进度对齐·大纲路标】声明
+     * stageEndYear/stageEndAge，但实测会胡写（写出早于故事开局的年份）。
      * 校验规则：stageEndYear 必须含 4 位年份且 ≥ 大纲该段预算年份、≥ 上一阶段声明（单调递增）；
      * stageEndAge 必须含数字且 ≥ 大纲段预算年龄（若大纲可算）。任一不合格即按大纲段预算回填——
      * 大纲段无数值标记（境界纪年等）时保持声明原样，不编造。
@@ -537,10 +611,10 @@ public class BuildStageBlueprintNode extends AbstractArmorySupport {
     /**
      * 未达成退出条件的机械化结转 + <b>退场规则</b>。
      *
-     * <p>2026-09-16 重写。原实现只把未达成条件写进 carriedTasks（任务层），而下一阶段核验的是
+     * <p>原实现只把未达成条件写进 carriedTasks（任务层），而下一阶段核验的是
      * <em>本阶段新生成的 exitConditions</em>（核验层）⇒ 旧条件<strong>永不被重验、永不退场</strong>：
-     * 实测 17 阶段里它只能一路结转（第 7 阶段结转 11 条，被 {@code MAX_CARRIED_TASKS=8} 静默丢弃 3 条），
-     * 同时模型每阶段重新表述该条件并越写越长（第 1 阶段单句 → 第 3 阶段 3 个分句），单调不可达。
+     * 实测它只能一路结转（超出上限的条目被静默丢弃，账目就此失真），
+     * 同时模型每阶段重新表述该条件并越写越长（单句 → 多个分句），单调不可达。
      *
      * <p>新规则（每个未达成条件最多重验一次后必然退场，累积量有上界）：
      * <ol>

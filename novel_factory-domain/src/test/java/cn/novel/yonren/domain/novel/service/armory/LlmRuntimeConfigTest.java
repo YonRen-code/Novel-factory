@@ -323,4 +323,128 @@ class LlmRuntimeConfigTest {
         assertEquals("static-model", summaryRow.getStaticModel());
         assertFalse(summaryRow.isOverridden());
     }
+
+    // ===== 场景级 API 开关（sceneApiEnabled）=====
+
+    /** 缺省（从未设置过开关）保持旧行为：场景自带地址密钥原样放行 */
+    @Test
+    void sceneApi_defaultOn_keepsSceneOwnApi() {
+        LlmRuntimeConfig config = new LlmRuntimeConfig(tmp.resolve("override.json"));
+        config.save(sceneSave("chapter-judge", sceneOverride("judge-model", null, null)));
+
+        StoryVO.Module.ChatModel sceneApi = new StoryVO.Module.ChatModel();
+        sceneApi.setModel("judge-model");
+        sceneApi.setBaseUrl("https://api.deepseek.com");
+        sceneApi.setApiKey("sk-deepseek");
+
+        StoryVO.Module.ChatModel applied = config.applyModel(ModelScene.CHAPTER_JUDGE, sceneApi);
+
+        assertEquals("https://api.deepseek.com", applied.getBaseUrl());
+        assertEquals("sk-deepseek", applied.getApiKey());
+    }
+
+    /** 开关关闭：场景自带地址密钥被抹掉（交给网关回落全局 ai-api），模型名不受影响 */
+    @Test
+    void sceneApi_off_stripsSceneApi_butKeepsModel() {
+        LlmRuntimeConfig config = new LlmRuntimeConfig(tmp.resolve("override.json"));
+        LlmConfigSaveRequestDTO off = new LlmConfigSaveRequestDTO();
+        off.setSceneApiEnabled(Boolean.FALSE);
+        config.save(off);
+
+        StoryVO.Module.ChatModel sceneApi = new StoryVO.Module.ChatModel();
+        sceneApi.setModel("judge-model");
+        sceneApi.setBaseUrl("https://api.deepseek.com");
+        sceneApi.setApiKey("sk-deepseek");
+        sceneApi.setCompletionsPath("/chat/completions");
+
+        StoryVO.Module.ChatModel applied = config.applyModel(ModelScene.CHAPTER_JUDGE, sceneApi);
+
+        assertNull(applied.getBaseUrl());
+        assertNull(applied.getApiKey());
+        assertNull(applied.getCompletionsPath());
+        assertEquals("judge-model", applied.getModel());
+        // 源对象不被污染
+        assertEquals("https://api.deepseek.com", sceneApi.getBaseUrl());
+    }
+
+    /** 开关打开时，场景级地址密钥覆盖生效；空串=清除该场景密钥覆盖 */
+    @Test
+    void sceneApi_on_sceneAddressKeyOverrideApplies() {
+        LlmRuntimeConfig config = new LlmRuntimeConfig(tmp.resolve("override.json"));
+        LlmConfigSaveRequestDTO req = new LlmConfigSaveRequestDTO();
+        req.setSceneApiEnabled(Boolean.TRUE);
+        LlmConfigSaveRequestDTO.SceneOverride so = sceneOverride("audit-model", null, null);
+        so.setBaseUrl("https://scene.example.com/v1");
+        so.setApiKey("sk-scene-key-9876");
+        req.setScenes(new LinkedHashMap<>(Map.of("audit", so)));
+        config.save(req);
+
+        StoryVO.Module.ChatModel applied = config.applyModel(ModelScene.CHAPTER_AUDIT, staticModule().getChatModel());
+        assertEquals("https://scene.example.com/v1", applied.getBaseUrl());
+        assertEquals("sk-scene-key-9876", applied.getApiKey());
+        // 视图只回掩码（矩阵需要 statics.module 装配才会返回场景行）
+        StoryProperties statics = new StoryProperties();
+        statics.setModule(staticModule());
+        LlmConfigDTO.SceneView row = config.view(statics).getScenes().stream()
+                .filter(s -> "audit".equals(s.getKey())).findFirst().orElseThrow();
+        assertEquals("https://scene.example.com/v1", row.getOverrideBaseUrl());
+        assertTrue(row.isOverrideHasKey());
+        assertFalse(row.getOverrideApiKeyMasked().contains("scene-key"));
+    }
+
+    /** 场景密钥留空提交=保留现有覆盖（密钥不回显，不能因一次普通保存被静默清掉）；空串=显式清除 */
+    @Test
+    void sceneApi_blankKeyKeepsExisting_explicitEmptyClears() {
+        LlmRuntimeConfig config = new LlmRuntimeConfig(tmp.resolve("override.json"));
+        LlmConfigSaveRequestDTO first = new LlmConfigSaveRequestDTO();
+        LlmConfigSaveRequestDTO.SceneOverride so = sceneOverride(null, 2048L, null);
+        so.setApiKey("sk-keep-me");
+        first.setScenes(new LinkedHashMap<>(Map.of("summary", so)));
+        config.save(first);
+
+        // 只改 tokens、不带 apiKey 字段：密钥保留
+        config.save(sceneSave("summary", sceneOverride(null, 4096L, null)));
+        StoryVO.Module.ChatModel kept = config.applyModel(ModelScene.CHAPTER_SUMMARY, staticModule().getChatModel());
+        assertEquals("sk-keep-me", kept.getApiKey());
+        assertEquals(Long.valueOf(4096L), kept.getMaxTokens());
+
+        // 显式空串：清除密钥覆盖，回退静态
+        LlmConfigSaveRequestDTO.SceneOverride cleared = sceneOverride(null, 4096L, null);
+        cleared.setApiKey("");
+        config.save(sceneSave("summary", cleared));
+        StoryVO.Module.ChatModel afterClear = config.applyModel(ModelScene.CHAPTER_SUMMARY, staticModule().getChatModel());
+        assertNull(afterClear.getApiKey());
+    }
+
+    /** 开关持久化：重启后仍生效 */
+    @Test
+    void sceneApi_switchSurvivesRelaunch() throws Exception {
+        Path file = tmp.resolve("override.json");
+        LlmRuntimeConfig config = new LlmRuntimeConfig(file);
+        LlmConfigSaveRequestDTO off = new LlmConfigSaveRequestDTO();
+        off.setSceneApiEnabled(Boolean.FALSE);
+        config.save(off);
+
+        LlmRuntimeConfig reloaded = new LlmRuntimeConfig(file);
+        assertEquals(Boolean.FALSE, reloaded.view().getSceneApiEnabled());
+        StoryVO.Module.ChatModel sceneApi = new StoryVO.Module.ChatModel();
+        sceneApi.setBaseUrl("https://api.deepseek.com");
+        sceneApi.setApiKey("sk-deepseek");
+        assertNull(reloaded.applyModel(ModelScene.CHAPTER_JUDGE, sceneApi).getBaseUrl());
+    }
+
+    /** reset 清空全部覆盖后，开关一并回缺省（=场景可自带 API，保持旧行为） */
+    @Test
+    void reset_clearsSceneApiSwitch() {
+        LlmRuntimeConfig config = new LlmRuntimeConfig(tmp.resolve("override.json"));
+        LlmConfigSaveRequestDTO off = new LlmConfigSaveRequestDTO();
+        off.setSceneApiEnabled(Boolean.FALSE);
+        config.save(off);
+
+        LlmConfigSaveRequestDTO reset = new LlmConfigSaveRequestDTO();
+        reset.setReset(true);
+        config.save(reset);
+
+        assertNull(config.view().getSceneApiEnabled());
+    }
 }

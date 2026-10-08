@@ -15,6 +15,11 @@ story:
     # 总开关：true=所有场景统一用 chat-model；false=按 scene-models 分场景路由
     unified-model-enabled: false
 
+    # 说明：场景模型可使用与全局 ai-api 不同的 base-url / api-key / completions-path——
+    # 在单个场景条目下加这三个字段即可（未配的字段逐项回落全局）。适用场景：让某几个场景
+    # 走不同供应商（第二模型族，典型如评审场景指向异族模型以保证盲评中立）。
+    # 也可在设置页按场景运行时覆盖（优先级：设置页覆盖 > 场景 yml > 全局），并受设置页
+    #「启用场景级 API」总开关管：关闭时所有场景强制走全局地址密钥，场景自带一律不生效。
     scene-models:
       stage-blueprint:
         model: DeepSeek-V4-Pro #deepseek-v4-pro

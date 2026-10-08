@@ -157,15 +157,15 @@ class ChapterPlanChecksTest {
         // ⚠️ 三章须各自写出"本章独有"的推进子项：起相邻章 suspenseBeat
         // **逐字相同**会命中独立去重规则（与停留规则无关），这里刻意让文本相异以隔离被测规则。
         List<ChapterPlanItemEntity> chapters = List.of(
-                planWithBeat(1, ladder.get(0) + "——陆建国首次听到投资提议", null),
-                planWithBeat(2, ladder.get(0) + "——陆建国翻看凭证起疑", null),
-                planWithBeat(3, ladder.get(0) + "——王秀兰察觉丈夫神色不对", ChapterTypeVO.TRANSITION));
+                planWithBeat(1, ladder.get(0) + "——角色A首次听到投资提议", null),
+                planWithBeat(2, ladder.get(0) + "——角色B翻看凭证起疑", null),
+                planWithBeat(3, ladder.get(0) + "——角色C察觉神色不对", ChapterTypeVO.TRANSITION));
 
         assertNull(ChapterPlanChecks.validateSuspenseAdvance(chapters, ladder));
     }
 
     /**
-     * 2026-10-01 新增：相邻章 suspenseBeat 逐字相同必须被点名——实测第 11–15 章五章复用同一句，
+     * 相邻章 suspenseBeat 逐字相同必须被点名——实测多章复用同一句时，
      * 旧判据只比档位下标、报一次后便沉默，且重规划反馈没告诉模型"你写的是同一句话"。
      */
     @Test
@@ -352,10 +352,10 @@ class ChapterPlanChecksTest {
 
     @Test
     void validateTimeAdvance_flagsMissingChapters() {
-        // 时序锚 v2：timeAdvance 是年龄/时间推进的唯一合法通道——
-        // 61-65 批实测全缺时，阶段蓝图声明的 stageEnd 跳接（2003→2009）落空，进度对齐滞后 7 段
+        // 时序锚：timeAdvance 是年龄/时间推进的唯一合法通道——
+        // 某批全缺时，阶段蓝图声明的 stageEnd 跳接落空，进度对齐持续滞后
         List<ChapterPlanItemEntity> chapters = List.of(
-                planItem(61, "推进3天，至2003年10月20日"),
+                planItem(61, "推进3天，至2050年10月20日"),
                 planItem(62, null));
 
         String issue = ChapterPlanChecks.validateTimeAdvance(chapters);
@@ -366,8 +366,8 @@ class ChapterPlanChecksTest {
     @Test
     void validateTimeAdvance_passesWhenAllDeclared() {
         List<ChapterPlanItemEntity> chapters = List.of(
-                planItem(61, "推进3天，至2003年10月20日"),
-                planItem(62, "推进5天，至2003年10月25日"));
+                planItem(61, "推进3天，至2050年10月20日"),
+                planItem(62, "推进5天，至2050年10月25日"));
 
         assertNull(ChapterPlanChecks.validateTimeAdvance(chapters));
     }
@@ -379,5 +379,51 @@ class ChapterPlanChecksTest {
                 .build();
     }
 
+    // ---- 追进度跳接校验（validateTimeAdvancePacing）----
 
+    /** 无预算年（非跳接段/无大纲）→ 不适用，恒通过 */
+    @Test
+    void pacing_skipsWithoutBudgetYear() {
+        List<ChapterPlanItemEntity> chapters = List.of(planItem(76, "推进一周，时间未跨年"));
+
+        assertNull(ChapterPlanChecks.validateTimeAdvancePacing(chapters, null));
+    }
+
+    /** 末章 timeAdvance 未提到预算年 → 驳回（跳接段的核心校验） */
+    @Test
+    void pacing_rejectsWhenLastAdvanceMissesBudgetYear() {
+        List<ChapterPlanItemEntity> chapters = List.of(
+                planItem(76, "推进一周"),
+                planItem(77, "相对上一章推进三天"));
+
+        String issue = ChapterPlanChecks.validateTimeAdvancePacing(chapters, 2050);
+
+        assertNotNull(issue);
+        assertTrue(issue.contains("2050"), issue);
+        assertTrue(issue.contains("第77章"), issue);
+    }
+
+    /** 预算年或次年命中即通过（段预算常写作两年区间） */
+    @Test
+    void pacing_acceptsBudgetYearOrNext() {
+        List<ChapterPlanItemEntity> hitStart = List.of(
+                planItem(76, "「多年后」跳至2050年"),
+                planItem(77, "推进到2050年秋"));
+        assertNull(ChapterPlanChecks.validateTimeAdvancePacing(hitStart, 2050));
+
+        List<ChapterPlanItemEntity> hitNext = List.of(
+                planItem(76, "「多年后」跳至2050年"),
+                planItem(77, "推进到2051年春"));
+        assertNull(ChapterPlanChecks.validateTimeAdvancePacing(hitNext, 2050));
+    }
+
+    /** 反馈文案必须给出可执行的修正动作——写明目标年份与跳接写法 */
+    @Test
+    void pacingFeedback_namesBudgetYearAndAction() {
+        String feedback = ChapterPlanChecks.timeAdvancePacingFeedback(2050);
+
+        assertTrue(feedback.contains("2050"), feedback);
+        assertTrue(feedback.contains("时间跳跃"), feedback);
+        assertTrue(feedback.contains("一句带过"), feedback);
+    }
 }

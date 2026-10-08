@@ -25,8 +25,8 @@ public class ChapterPlanItemEntity {
     private List<String> keyEvents;
     //结尾悬念
     private String endingHook;
-    // 本章时间推进声明时序锚 v2）：唯一合法的年龄/时间推进通道——写手据此渲染锁定锚，
-    // 审计据此判"推进与声明不符"。格式自由文本（如"推进 2 周，至 2003 年 10 月下旬"）
+    // 本章时间推进声明（时序锚）：唯一合法的年龄/时间推进通道——写手据此渲染锁定锚，
+    // 审计据此判"推进与声明不符"。格式自由文本（如"推进 2 周，至 XXXX 年 10 月下旬"）
     private String timeAdvance;
     //章节类型：normal 普通 / climax 高潮 / finale 卷末
     private ChapterTypeVO chapterType;

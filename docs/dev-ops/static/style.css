@@ -799,7 +799,7 @@ textarea { resize: vertical; line-height: 1.7; }
 
 .scene-row {
     display: grid;
-    grid-template-columns: 1.35fr 1.25fr 1.15fr 0.75fr 0.7fr auto;
+    grid-template-columns: 1.3fr 1.1fr 1fr 0.7fr 0.65fr 1.15fr 1.15fr auto;
     gap: 10px;
     align-items: center;
     padding: 8px 10px;
@@ -808,6 +808,36 @@ textarea { resize: vertical; line-height: 1.7; }
     border-radius: 4px;
     transition: background 0.15s ease, border-color 0.15s ease;
 }
+
+.scene-api-switch {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 12px 0 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    background: var(--panel-2);
+}
+
+.switch-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.switch-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.scene-api-hint { margin: 0; font-size: 11px; }
+.scene-api-hint-off { color: var(--gold); }
 
 .scene-row:hover {
     background: var(--panel-2);

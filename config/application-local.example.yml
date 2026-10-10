@@ -1,0 +1,40 @@
+# ============================================================================
+# 本地覆盖示例
+#
+# 用法：复制到 novel_factory-app/src/main/resources/application-local.yml 后按需修改。
+# 加载方式：application-dev.yml 以 optional:classpath:application-local.yml 导入本文件，
+#           它排在 novel-generation.yml 之后，所以这里的每一项都会覆盖默认值；
+#           文件不存在时静默跳过，不影响启动。
+# 该文件名已被 .gitignore 排除，可以安全地放密钥。
+#
+# 不想在仓库里放密钥的话，环境变量 LLM_API_KEY / LLM_BASE_URL 与本文件等价——
+# 但注意：本文件里的值一旦写上就会覆盖环境变量，所以只启用你确实要改的项。
+# ============================================================================
+
+story:
+  module:
+    # 对话模型：规划 / 正文 / 审校 / 评审默认全部走这里。
+    # 单场景换模型请用设置页的「场景模型矩阵」，不要在 yml 里分场景硬编码。
+    ai-api:
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
+      api-key: sk-替换成你的密钥      # ← 三项必改里唯一需要动的一行
+
+    # ↓↓↓ 以下各项默认值与 novel-generation.yml 一致，需要时去掉注释启用 ↓↓↓
+
+    # 嵌入模型：只在启用向量增强（Qdrant）时才会被调用。
+    # 注意它的 base-url 不吃 LLM_BASE_URL 环境变量，换供应商必须在这里显式覆盖。
+    # embedding-api:
+    #   base-url: https://dashscope.aliyuncs.com/compatible-mode
+    #   api-key: sk-替换成你的密钥
+    #   model: qwen3.7-text-embedding
+    #   dimensions: 1024     # 换模型必须重嵌：维度相同不代表向量空间兼容
+
+  # 向量库：不填或不起 Qdrant 时，系统以「无向量增强」模式运行（三账本/摘要/伏笔账等
+  # 文件侧记忆依然完整），批末体检会以「无检索唤醒章数占比」提示哪些章是裸跑的。
+  # vector-store:
+  #   host: localhost
+  #   port: 6334        # Qdrant 的 gRPC 端口；6333 是 REST/dashboard
+
+# 工作台地址（默认 http://localhost:8080）
+# server:
+#   port: 8080
